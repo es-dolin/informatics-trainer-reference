@@ -145,6 +145,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .step-instructions .learning-plan{margin:14px 0}.learning-plan li.is-current{color:var(--indigo);font-weight:750}
 .topic-theory{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px}
 .topic-theory summary{color:var(--indigo);font-weight:700;cursor:pointer}
+.topic-theory .lesson-intro,.topic-theory .lesson-points{color:var(--ink)}
 .learning-next,.review-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:12px}
 .learning-next .primary-button{font-size:13px;gap:8px}.learning-next .text-button{background:transparent}
 .task-topline>.text-button{min-height:36px;font-size:12px;color:var(--indigo)}

@@ -47,7 +47,7 @@ function divisionSteps(number, base) {
     const quotient = Math.floor(current / base);
     const remainder = current % base;
     steps.push(step("Собери запись в новом основании", "Раздели с остатком", `${current} ÷ ${base}. Найди целое частное и остаток.`,
-      [field("Частное (десятичное)", quotient), field("Остаток (цифра нового основания)", DIGITS[remainder], base)],
+      [field("Частное", quotient), field("Остаток", DIGITS[remainder], base)],
       `Частное - целая часть результата. Остаток = ${current} − частное × ${base}.${base === 16 ? " Для остатка введи цифру нового основания: A = 10, B = 11, C = 12, D = 13, E = 14, F = 15." : ""}`,
       `${current} ÷ ${base}: частное ${quotient}, остаток ${remainder}${remainder >= 10 ? `₁₀ = ${DIGITS[remainder]}₁₆` : ""}.`));
     current = quotient;
