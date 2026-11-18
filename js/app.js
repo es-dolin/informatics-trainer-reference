@@ -115,12 +115,6 @@ function renderHome() {
         <div class="section-heading"><div><p class="eyebrow">пять направлений</p><h2 id="topics-title">Тренажёры</h2></div><p class="section-side-note">${completed} из 5 тем начато <span class="side-divider">·</span> 2 режима<br><span>Выбери тему и начни практику</span></p></div>
         <div class="module-grid">${cards}</div>
       </section>
-      <section class="method-strip" aria-label="Как учиться в ИнфоЛаб">
-        <div class="method-intro"><span class="method-index">ТВОЙ ЦИКЛ ОБУЧЕНИЯ</span><strong>От первого шага до уверенного ответа</strong></div>
-        <div class="method-step"><b>01</b><span><strong>Изучай и тренируйся</strong><small>Задачи по шагам</small></span></div>
-        <span class="method-arrow" aria-hidden="true">→</span>
-        <div class="method-step"><b>02</b><span><strong>Проверь себя</strong><small>Решай самостоятельно</small></span></div>
-      </section>
     </main>`;
 }
 
