@@ -86,4 +86,6 @@ npm run test:browser
 
 ## Публикация на GitHub Pages
 
-Удалённый репозиторий и публикация не выполнялись. Для последующей публикации владелец может создать репозиторий `es-dolin/informatics-trainer-reference`, отправить содержимое ветки `main`, затем в настройках репозитория открыть **Settings → Pages** и выбрать публикацию из ветки `main`, каталог `/ (root)`. Сборка не нужна. Ссылки приложения относительные, поэтому главная страница должна открываться и по адресу GitHub Pages для подпапки репозитория.
+Исходный код находится в [репозитории es-dolin/informatics-trainer-reference](https://github.com/es-dolin/informatics-trainer-reference). Для первой публикации владелец репозитория открывает **Settings → Pages**, в разделе **Build and deployment** выбирает **Deploy from a branch**, затем ветку `main` и каталог `/(root)`, после чего нажимает **Save**. Сборка не нужна; следующие отправки в `main` будут обновлять сайт.
+
+Адрес приложения: <https://es-dolin.github.io/informatics-trainer-reference/>. Он станет доступен после включения GitHub Pages и завершения первой публикации. Если сайт не открывается сразу, проверь статус в **Settings → Pages**.
