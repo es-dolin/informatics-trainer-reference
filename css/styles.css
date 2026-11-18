@@ -65,7 +65,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .module-heading.blue{--module-accent:#4f46e5}.module-heading.orange{--module-accent:#c56a0d}.module-heading.violet{--module-accent:#6d28d9}.module-heading.green{--module-accent:#047857}.module-heading.pink{--module-accent:#be185d}
 .module-heading .eyebrow{margin-bottom:7px;color:var(--module-accent)}.module-heading .eyebrow span{padding:0 4px;color:#667085}.module-heading h1{font-size:clamp(29px,4vw,40px)}.module-heading>div:first-child>p:last-child{max-width:640px;margin:7px 0 0;color:var(--muted);font-size:14px}
 .module-score{min-width:125px;padding-left:18px;display:grid;border-left:1px solid var(--line);text-align:right}.module-score>span{color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.07em}.module-score strong{color:var(--graphite);font:800 25px "Manrope","Segoe UI",sans-serif}.module-score i{padding:0 3px;color:#667085;font-style:normal}.module-score small{color:var(--muted);font-size:10px}
-.mode-switcher{margin:12px 0 7px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.mode-tab{min-height:55px;padding:9px 13px;display:grid;align-content:center;gap:1px;border:1px solid var(--line);border-radius:10px;background:white;text-align:left;cursor:pointer;transition:background .18s,border-color .18s,transform .18s}.mode-tab:hover{transform:translateY(-1px);border-color:#a5b4fc}.mode-tab strong{color:var(--graphite);font-size:13px;font-weight:750}.mode-tab span{color:var(--muted);font-size:11px}.mode-tab.is-active{border-color:var(--indigo);background:#eef2ff;box-shadow:inset 0 0 0 1px var(--indigo)}.mode-tab.is-active strong{color:var(--indigo-dark)}
+.mode-switcher{margin:12px 0 7px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.mode-tab{min-height:55px;padding:9px 13px;display:grid;align-content:center;gap:1px;border:1px solid var(--line);border-radius:10px;background:white;text-align:left;cursor:pointer;transition:background .18s,border-color .18s,transform .18s}.mode-tab:hover{transform:translateY(-1px);border-color:#a5b4fc}.mode-tab strong{color:var(--graphite);font-size:13px;font-weight:750}.mode-tab span{color:var(--muted);font-size:11px}.mode-tab.is-active{border-color:var(--indigo);background:#eef2ff;box-shadow:inset 0 0 0 1px var(--indigo)}.mode-tab.is-active strong{color:var(--indigo-dark)}
 .mode-note{margin:8px 0 10px;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.mode-status-dot{width:7px;height:7px;background:var(--indigo)}
 .learning-layout{display:grid;align-items:start;gap:13px}.learning-layout.with-lesson{grid-template-columns:minmax(0,1.65fr) minmax(265px,.75fr)}.learning-layout.solo-task{grid-template-columns:minmax(0,1fr)}
 .task-panel,.lesson-panel,.lesson-drawer{min-width:0;border:1px solid var(--line);border-radius:14px;background:white}
@@ -102,42 +102,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
 .attempt-note{margin:10px 0 0;color:var(--muted);font-size:12px}
-.guided-panel{max-width:100%}.guided-intro{margin:0 0 15px;color:var(--muted);font-size:14px}
 .guided-progress{display:flex;justify-content:space-between;gap:12px;color:var(--indigo);font-size:12px;font-weight:750}
-.guided-history{margin:0 0 14px;padding:11px 14px 11px 32px;border-radius:9px;background:#f8fafc;color:#475569;font:13px/1.6 Consolas,monospace}
-.guided-history li+li{margin-top:3px}
-.guided-current-step{padding:16px;border:1px solid #c7d2fe;border-radius:12px;background:#f8f9ff}
-.guided-current-step>p{margin:8px 0 13px;color:var(--ink);font-size:14px}
-.guided-equation{padding:12px 14px;border-radius:9px;background:var(--graphite);color:#e2e8f0}
-.guided-equation code{font:700 clamp(17px,2.4vw,24px) Consolas,monospace}
-.guided-equation b{color:#67e8f9}
-.guided-form{margin-top:14px;display:flex;align-items:end;gap:10px;flex-wrap:wrap}
-.guided-form label{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:700}
-.guided-form input{width:120px;min-height:43px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:var(--graphite);font:700 16px Consolas,monospace}
-.guided-form input:focus{border-color:var(--indigo);outline:3px solid rgb(79 70 229 / 15%)}
-.guided-final-form label{flex:1}.guided-final-form input{width:100%;max-width:280px}
 .guided-feedback{margin:12px 0 0;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:650}
 .guided-feedback.is-correct{background:#ecfdf5;color:#047857}.guided-feedback.is-wrong{background:#fff7ed;color:#9a3412}.guided-feedback.is-neutral{background:#f1f5f9;color:#475569}
-.guided-solution{margin-top:13px;padding:12px 14px;border:1px solid var(--line);border-radius:9px;background:white}
-.guided-solution summary{color:var(--indigo);font-size:13px;font-weight:750;cursor:pointer}
-.guided-solution ol{padding-left:22px;color:var(--ink);font:13px/1.6 Consolas,monospace}
-.guided-solution li+li{margin-top:3px}.guided-solution p{margin:10px 0 0;color:var(--muted);font-size:13px}.guided-solution strong{color:var(--indigo-dark);font-family:Consolas,monospace}
-.guided-complete{margin-top:12px;padding:15px;display:flex;align-items:center;gap:12px;border:1px solid #a7f3d0;border-radius:10px;background:#ecfdf5}
-.guided-complete-mark{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#d1fae5;color:#047857;font-weight:800}
-.guided-complete strong{color:#065f46;font-size:15px}.guided-complete p{margin:3px 0 0;color:#047857;font:700 17px Consolas,monospace}
-.guided-hint-button{margin-top:12px}
 
 /* План помогает выбрать действия, а форма проверяет один учебный шаг. */
 .learning-plan{margin:14px 0;padding:12px 14px;border:1px solid #c7d2fe;border-radius:10px;background:#f5f6ff}
 .learning-plan summary{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--indigo-dark);font-size:14px;font-weight:750;cursor:pointer}
 .learning-plan summary span{color:var(--muted);font-size:12px;font-weight:500}
 .learning-plan ol{margin:12px 0 0;padding-left:22px;font-size:14px;line-height:1.7}
-.practice-support{margin:14px 0 18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
-.walkthrough-toggle{color:var(--indigo);border-color:#c7d2fe}
 .learning-step{margin:14px 0;padding:17px;border:1px solid #c7d2fe;border-radius:12px;background:#f8faff;animation:reveal .2s ease-out}
 .learning-step .guided-progress{flex-wrap:wrap;align-items:start;gap:5px 12px;font-size:12px}
 .learning-step h3{margin:14px 0 7px;font:750 18px/1.4 "Manrope","Segoe UI",sans-serif;color:var(--graphite)}
-.learning-question{margin:0 0 14px;font-size:14px;line-height:1.7;overflow-wrap:anywhere}
 .learning-meter{display:block;width:100%;height:6px;margin-top:11px;border:0;border-radius:4px;background:#e0e7ff;accent-color:var(--indigo)}
 .learning-meter::-webkit-progress-bar{background:#e0e7ff;border-radius:4px}.learning-meter::-webkit-progress-value{background:var(--indigo);border-radius:4px}
 .learning-step-form{display:flex;align-items:end;flex-wrap:wrap;gap:12px}
@@ -145,13 +121,41 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .learning-step-form input,.learning-step-form select{width:100%;min-height:45px;padding:8px 11px;border:1px solid #a5b4fc;border-radius:8px;background:white;color:var(--graphite);font:600 17px/1.4 Consolas,monospace}
 .learning-step-form [aria-invalid=true]{border-color:#b91c1c;background:#fff7f7}
 .learning-step-form .primary-button{min-height:45px}
-.learning-hint{margin-top:12px;font-size:12px}
 .learning-history{margin-top:14px;font-size:13px}.learning-history summary{color:var(--indigo);font-weight:700;cursor:pointer}
 .learning-history ol{padding-left:23px}.learning-history li{margin:10px 0}.learning-history li>span{display:block;color:var(--indigo);font-family:Consolas,monospace}.learning-history p{margin:3px 0;color:var(--muted);overflow-wrap:anywhere}
 .learning-complete{margin:15px 0;padding:16px;border:1px solid #a7f3d0;border-radius:12px;background:#ecfdf5;color:#065f46;font-size:14px}
 .learning-complete>strong{font-size:17px}.learning-complete p{margin:7px 0 12px}
 .code-line{display:block;min-height:1.6em;padding:0 5px;border-left:3px solid transparent}
 .code-line.is-active{border-left-color:#67e8f9;background:#253355;color:#cffafe}
+
+/* Два режима: учебные действия и самостоятельная проверка. */
+.lesson-controls{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(240px,.8fr);align-items:end;gap:14px;margin:14px 0 9px}
+.mode-switcher{grid-template-columns:repeat(2,minmax(0,1fr));margin:0}
+.variant-control{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:650;min-width:0}
+.variant-control select{width:100%;min-height:44px;padding:8px 12px;border:1px solid #c7d2fe;border-radius:10px;background:white;color:var(--graphite);font-size:14px;cursor:pointer}
+.step-instructions .lesson-heading h2{font-size:20px;line-height:1.35}
+.step-instruction{margin:12px 0;font-size:14px;line-height:1.75;overflow-wrap:anywhere}
+.step-rule{padding:13px;border-left:3px solid var(--cyan);border-radius:0 8px 8px 0;background:#f0fbff}
+.step-rule>strong{color:#155e75;font-size:12px}.step-rule p{margin:5px 0 0;color:var(--ink);font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.step-instructions .learning-plan{margin:14px 0}.learning-plan li.is-current{color:var(--indigo);font-weight:750}
+.topic-theory{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px}
+.topic-theory summary{color:var(--indigo);font-weight:700;cursor:pointer}
+.learning-next,.review-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:12px}
+.learning-next .primary-button{font-size:13px;gap:8px}.learning-next .text-button{background:transparent}
+.task-topline>.text-button{min-height:36px;font-size:12px;color:var(--indigo)}
+.compact-step-instruction{display:none}
+@media(max-width:720px){
+ .lesson-controls{grid-template-columns:minmax(0,1fr);gap:10px}
+ .compact-step-instruction{display:block;margin:9px 0 14px;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+ .compact-step-instruction p{margin:7px 0}.compact-step-instruction summary{color:var(--indigo);font-weight:700;cursor:pointer}
+ .step-instructions>.lesson-heading,.step-instructions>.step-instruction,.step-instructions>.step-rule{display:none}
+ .step-instructions .lesson-heading h2{font-size:18px}
+ .step-instruction{margin:8px 0;font-size:13px}.step-rule{padding:9px 11px}
+}
+@media(max-width:520px){
+ .lesson-controls .mode-tab strong{font-size:13px}.lesson-controls .mode-tab span{font-size:11px}
+ .variant-control select{font-size:13px}.learning-next{align-items:stretch;flex-direction:column}
+}
 @media(max-width:520px){
  .hero-copy h1{font-size:clamp(30px,8.5vw,43px)}
  .module-heading{display:flex;flex-direction:column;align-items:stretch}
@@ -160,4 +164,3 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
  .learning-step-form .primary-button{width:100%}.learning-step .guided-progress>span:last-child{width:100%}
  .learning-plan{padding:11px}.learning-plan summary{font-size:13px}.learning-plan ol{font-size:13px}
 }
-@media(max-width:520px){.guided-current-step{padding:12px}.guided-form{align-items:stretch}.guided-form label{flex:1;min-width:105px}.guided-form input{width:100%}.guided-form button{width:100%}.guided-progress{font-size:11px}.guided-history,.guided-solution ol{font-size:12px}}

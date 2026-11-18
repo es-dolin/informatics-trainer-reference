@@ -36,7 +36,7 @@ function divisionSteps(number, base) {
     const remainder = current % base;
     steps.push(step("Собери запись в новом основании", "Раздели с остатком", `${current} ÷ ${base}. Найди целое частное и остаток.`,
       [field("Частное (десятичное)", quotient), field("Остаток (цифра нового основания)", DIGITS[remainder], base)],
-      `Частное округли вниз. Остаток = ${current} − частное × ${base}. Для значений 10–15 используй A–F.`,
+      `Частное округли вниз. Остаток = ${current} − частное × ${base}.${base === 16 ? " Для значений 10–15 используй A–F." : ""}`,
       `${current} ÷ ${base} = ${quotient}, остаток ${DIGITS[remainder]}.`));
     current = quotient;
   } while (current > 0);
@@ -53,7 +53,7 @@ function systemsSteps(task) {
         [choice("Знак", task.answer, ["<", "=", ">"])], "Сравнивай значения чисел, а не длину их записей.", `${data.leftValue} ${task.answer} ${data.rightValue}.`)
     ];
   }
-  const steps = [decimalStep(data.source, data.sourceBase, "Прочитай исходное число")];
+  const steps = data.sourceBase === 10 ? [] : [decimalStep(data.source, data.sourceBase, "Прочитай исходное число")];
   if (data.targetBase !== 10) {
     steps.push(...divisionSteps(data.number, data.targetBase));
     steps.push(step("Собери запись в новом основании", "Прочитай остатки снизу вверх", "Начни с последнего остатка и запиши все цифры в обратном порядке.",

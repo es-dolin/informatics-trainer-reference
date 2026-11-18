@@ -87,12 +87,16 @@ function randomExpression(rng, variableNames) {
   return secondOperation(not(first), firstOperation(second, not(third)));
 }
 
-function makeEvaluationTask(rng) {
-  const expression = randomExpression(rng, VARIABLE_NAMES.slice(0, 2));
-  const values = {
+function makeEvaluationTask(rng, reference = null) {
+  const expression = reference?.meta.expression ?? randomExpression(rng, VARIABLE_NAMES.slice(0, 2));
+  const values = reference ? { ...reference.meta.values } : {
     A: randomInteger(rng, 0, 1),
     B: randomInteger(rng, 0, 1)
   };
+  if (reference) {
+    const changedName = rng() < 0.5 ? "A" : "B";
+    values[changedName] = 1 - values[changedName];
+  }
   const calculation = evaluateWithSteps(expression, values);
   const result = calculation.value ? "1" : "0";
 
@@ -112,7 +116,7 @@ function makeEvaluationTask(rng) {
   };
 }
 
-function makeTableTask(variableCount) {
+function makeTableTask(variableCount, expressionOverride = null) {
   const variables = VARIABLE_NAMES.slice(0, variableCount);
   let expression;
   if (variableCount === 2) {
@@ -121,6 +125,7 @@ function makeTableTask(variableCount) {
     // Такая форма показывает приоритет НЕ, И и ИЛИ на трёх переменных.
     expression = and(or(not(variable("A")), and(variable("B"), not(variable("C")))), variable("C"));
   }
+  if (expressionOverride) expression = expressionOverride;
   const rows = buildTruthTable(expression, variables);
   const answers = rows.map((row) => row.result);
   const expressionText = formatExpression(expression);
@@ -146,6 +151,36 @@ export function generateTask(rng = Math.random) {
   if (choice === 0) return makeEvaluationTask(rng);
   if (choice === 1) return makeTableTask(2);
   return makeTableTask(3);
+}
+
+function variedTableExpression(variableCount, rng, reference) {
+  let expressions;
+  if (variableCount === 2) {
+    expressions = [
+      or(variable("A"), not(variable("B"))),
+      and(variable("A"), not(variable("B"))),
+      or(not(variable("A")), variable("B")),
+      and(not(variable("A")), variable("B"))
+    ];
+  } else {
+    // Три формы имеют одинаковую вложенность и по пять операций.
+    // Во всех формах итог действительно зависит от трёх переменных.
+    expressions = [["A", "B", "C"], ["B", "C", "A"], ["C", "A", "B"]].map(([a, b, c]) =>
+      and(or(not(variable(a)), and(variable(b), not(variable(c)))), variable(b))
+    );
+  }
+  const previous = reference ? formatExpression(reference.meta.expression) : "";
+  const choices = expressions.filter((expression) => formatExpression(expression) !== previous);
+  return choices[randomInteger(rng, 0, choices.length - 1)];
+}
+
+export function generateVariantTask(variantId, rng = Math.random, reference = null) {
+  if (variantId === "value") return makeEvaluationTask(rng, reference);
+  if (variantId === "table-2" || variantId === "table-3") {
+    const count = variantId === "table-2" ? 2 : 3;
+    return makeTableTask(count, variedTableExpression(count, rng, reference));
+  }
+  throw new Error(`Неизвестный логический вариант: ${variantId}`);
 }
 
 export function checkAnswer(task, answer) {

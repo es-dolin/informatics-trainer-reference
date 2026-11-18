@@ -44,7 +44,7 @@ test("двоичное деление переводит оба числа и с
 
 test("перевод нуля даёт непустой маршрут, сравнение равных чисел завершается знаком равенства", () => {
   const zero = createLearningSteps({ kind: "systems-conversion", answer: "0", meta: { source: "0", sourceBase: 10, targetBase: 2, number: 0 } });
-  assert.deepEqual(answers(zero), [["0"], ["0", "0"], ["0"]]);
+  assert.deepEqual(answers(zero), [["0", "0"], ["0"]]);
   const comparison = createLearningSteps({ kind: "systems-comparison", answer: "=", meta: { left: "A", leftBase: 16, leftValue: 10, right: "1010", rightBase: 2, rightValue: 10 } });
   assert.deepEqual(answers(comparison), [["10"], ["10"], ["="]]);
 });

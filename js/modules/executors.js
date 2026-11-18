@@ -1,12 +1,13 @@
 // Два безопасных учебных исполнителя: числовой «Удвоитель» и координатный
 // «Чертёжник». Команды хранятся как данные, а не как исполняемый код.
+import { similarInteger, differentInteger } from "../similar-task.js";
 function randomInteger(rng, minimum, maximum) {
   return Math.floor(rng() * (maximum - minimum + 1)) + minimum;
 }
 
-function makeNumberExecutorTask(rng) {
-  const start = randomInteger(rng, 3, 8);
-  const commandCount = randomInteger(rng, 3, 5);
+function makeNumberExecutorTask(rng, reference = null) {
+  const start = reference ? similarInteger(rng, reference.meta.start, 3, 8) : randomInteger(rng, 3, 8);
+  const commandCount = reference?.meta.commandLimit ?? randomInteger(rng, 3, 5);
   const commands = [];
   let target = start;
 
@@ -54,16 +55,21 @@ export function computeDrawing(commands, start = { x: 0, y: 0 }) {
   return points;
 }
 
-function makeDrawingTask(rng) {
-  const repeatCount = randomInteger(rng, 2, 4);
-  const moveCount = randomInteger(rng, 2, 3);
+function makeDrawingTask(rng, reference = null) {
+  const repeatCount = reference?.meta.repeatCount ?? randomInteger(rng, 2, 4);
+  const moveCount = reference?.meta.sequence.length ?? randomInteger(rng, 2, 3);
   const sequence = [];
   const description = [];
 
   for (let index = 0; index < moveCount; index += 1) {
     let dx = randomInteger(rng, -3, 3);
     let dy = randomInteger(rng, -3, 3);
+    if (reference && index === 0) dx = differentInteger(rng, -3, 3, reference.meta.sequence[0].dx);
     if (dx === 0 && dy === 0) dx = 1;
+    // Если защита от нулевого смещения вернула прежний вектор, меняем dy.
+    if (reference && index === 0 && dx === reference.meta.sequence[0].dx && dy === reference.meta.sequence[0].dy) {
+      dy = differentInteger(rng, -3, 3, reference.meta.sequence[0].dy);
+    }
     sequence.push({ dx, dy });
     description.push(`(${dx}, ${dy})`);
   }
@@ -94,6 +100,12 @@ function makeDrawingTask(rng) {
 
 export function generateTask(rng = Math.random) {
   return rng() < 0.52 ? makeNumberExecutorTask(rng) : makeDrawingTask(rng);
+}
+
+export function generateVariantTask(variantId, rng = Math.random, reference = null) {
+  if (variantId === "number") return makeNumberExecutorTask(rng, reference);
+  if (variantId === "drawing") return makeDrawingTask(rng, reference);
+  throw new Error(`Неизвестный исполнитель: ${variantId}`);
 }
 
 export function simulateNumberCommands(start, commandText) {

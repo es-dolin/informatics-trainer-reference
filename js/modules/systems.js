@@ -1,4 +1,5 @@
 // Задачи на системы счисления. Здесь нет DOM: функции удобно проверять отдельно.
+import { similarInteger } from "../similar-task.js";
 
 const DIGITS = "0123456789ABCDEF";
 const BASES = [2, 8, 10, 16];
@@ -54,11 +55,14 @@ export function fromDecimal(number, base) {
   return { text: remainders.reverse().join(""), steps };
 }
 
-export function generateConversionTask(rng = Math.random) {
-  const number = randomInteger(rng, 0, 1024);
-  const sourceBase = BASES[randomInteger(rng, 0, BASES.length - 1)];
+export function generateConversionTask(rng = Math.random, options = {}) {
+  const reference = options.reference;
+  const number = reference
+    ? similarInteger(rng, reference.meta.number, reference.meta.divisions ? 12 : 0, reference.meta.divisions ? 255 : 1024, options.sourceBase)
+    : randomInteger(rng, 0, 1024);
+  const sourceBase = options.sourceBase ?? BASES[randomInteger(rng, 0, BASES.length - 1)];
   const targetBases = BASES.filter((base) => base !== sourceBase);
-  const targetBase = targetBases[randomInteger(rng, 0, targetBases.length - 1)];
+  const targetBase = options.targetBase ?? targetBases[randomInteger(rng, 0, targetBases.length - 1)];
   const source = fromDecimal(number, sourceBase).text;
   const converted = fromDecimal(number, targetBase);
   const sourceSteps = sourceBase === 10 ? [] : [`Сначала переводим исходную запись ${source} из основания ${sourceBase} в десятичную систему: ${number}.`];
@@ -122,7 +126,7 @@ export function generateGuidedConversionTask(rng = Math.random) {
   };
 }
 
-export function generateComparisonTask(rng = Math.random) {
+export function generateComparisonTask(rng = Math.random, reference = null) {
   // Сначала выбираем знак, иначе равные значения почти не встречаются.
   const relation = randomInteger(rng, 0, 2);
   let leftValue;
@@ -141,8 +145,12 @@ export function generateComparisonTask(rng = Math.random) {
 
   const leftBaseIndex = randomInteger(rng, 0, COMPARISON_BASES.length - 1);
   const rightBaseOffset = randomInteger(rng, 1, COMPARISON_BASES.length - 1);
-  const leftBase = COMPARISON_BASES[leftBaseIndex];
-  const rightBase = COMPARISON_BASES[(leftBaseIndex + rightBaseOffset) % COMPARISON_BASES.length];
+  const leftBase = reference?.meta.leftBase ?? COMPARISON_BASES[leftBaseIndex];
+  const rightBase = reference?.meta.rightBase ?? COMPARISON_BASES[(leftBaseIndex + rightBaseOffset) % COMPARISON_BASES.length];
+  if (reference) {
+    leftValue = similarInteger(rng, reference.meta.leftValue, 0, 1024, leftBase);
+    rightValue = reference.meta.rightValue;
+  }
 
   const left = fromDecimal(leftValue, leftBase).text;
   const right = fromDecimal(rightValue, rightBase).text;
@@ -168,6 +176,13 @@ export function generateComparisonTask(rng = Math.random) {
 
 export function generateTask(rng = Math.random) {
   return rng() < 0.55 ? generateConversionTask(rng) : generateComparisonTask(rng);
+}
+
+export function generateVariantTask(variantId, rng = Math.random, reference = null) {
+  if (variantId === "compare") return generateComparisonTask(rng, reference);
+  const match = variantId.match(/^convert-(2|8|10|16)-(2|8|10|16)$/);
+  if (!match || match[1] === match[2]) throw new Error(`Неизвестный перевод: ${variantId}`);
+  return generateConversionTask(rng, { sourceBase: Number(match[1]), targetBase: Number(match[2]), reference });
 }
 
 export function checkAnswer(task, answer) {

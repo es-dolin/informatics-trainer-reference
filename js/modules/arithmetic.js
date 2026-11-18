@@ -1,5 +1,6 @@
 // Арифметические задачи в восьмеричной, шестнадцатеричной и двоичной системах.
 import { fromDecimal, toDecimal } from "./systems.js";
+import { similarInteger } from "../similar-task.js";
 
 const DIGITS = "0123456789ABCDEF";
 
@@ -54,11 +55,12 @@ function cleanNumber(text) {
   return normalized.replace(/^0+(?=.)/, "");
 }
 
-function generateOtherBaseTask(rng) {
-  const base = rng() < 0.5 ? 8 : 16;
-  const operation = rng() < 0.5 ? "+" : "−";
-  let leftValue = randomInteger(rng, 8, 150);
-  let rightValue = randomInteger(rng, 2, 90);
+function generateOtherBaseTask(rng, options = {}) {
+  const base = options.base ?? (rng() < 0.5 ? 8 : 16);
+  const operation = options.operation ?? (rng() < 0.5 ? "+" : "−");
+  const reference = options.reference;
+  let leftValue = reference ? similarInteger(rng, reference.meta.leftValue, 8, 150, base) : randomInteger(rng, 8, 150);
+  let rightValue = reference?.meta.rightValue ?? randomInteger(rng, 2, 90);
   if (operation === "−" && rightValue > leftValue) [leftValue, rightValue] = [rightValue, leftValue];
 
   const left = fromDecimal(leftValue, base).text;
@@ -83,18 +85,20 @@ function generateOtherBaseTask(rng) {
   };
 }
 
-function generateBinaryTask(rng) {
+function generateBinaryTask(rng, options = {}) {
   const operations = ["+", "−", "×", "÷"];
-  const operation = operations[randomInteger(rng, 0, operations.length - 1)];
+  const operation = options.operation ?? operations[randomInteger(rng, 0, operations.length - 1)];
+  const reference = options.reference;
   let leftValue;
   let rightValue;
 
   if (operation === "÷") {
-    rightValue = randomInteger(rng, 2, 12);
-    leftValue = rightValue * randomInteger(rng, 2, 12);
+    rightValue = reference?.meta.rightValue ?? randomInteger(rng, 2, 12);
+    const quotient = reference ? similarInteger(rng, reference.meta.result, 2, 12, 2) : randomInteger(rng, 2, 12);
+    leftValue = rightValue * quotient;
   } else {
-    leftValue = randomInteger(rng, 2, 24);
-    rightValue = randomInteger(rng, 2, 20);
+    leftValue = reference ? similarInteger(rng, reference.meta.leftValue, 2, 24, 2) : randomInteger(rng, 2, 24);
+    rightValue = reference?.meta.rightValue ?? randomInteger(rng, 2, 20);
     if (operation === "−" && rightValue > leftValue) [leftValue, rightValue] = [rightValue, leftValue];
   }
 
@@ -134,6 +138,16 @@ function generateBinaryTask(rng) {
 
 export function generateTask(rng = Math.random) {
   return rng() < 0.48 ? generateOtherBaseTask(rng) : generateBinaryTask(rng);
+}
+
+export function generateVariantTask(variantId, rng = Math.random, reference = null) {
+  const match = variantId.match(/^(add|subtract|multiply|divide)-(2|8|16)$/);
+  if (!match) throw new Error(`Неизвестная арифметическая задача: ${variantId}`);
+  const operation = { add: "+", subtract: "−", multiply: "×", divide: "÷" }[match[1]];
+  const base = Number(match[2]);
+  if (base !== 2 && !["+", "−"].includes(operation)) throw new Error(`Операция ${operation} не поддерживается в основании ${base}.`);
+  const options = { base, operation, reference };
+  return base === 2 ? generateBinaryTask(rng, options) : generateOtherBaseTask(rng, options);
 }
 
 export function checkAnswer(task, answer) {

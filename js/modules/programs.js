@@ -1,12 +1,13 @@
 // Модуль показывает короткие заранее заданные программы. Здесь нет eval и нет
 // исполнения строки из поля ответа: каждый шаблон симулируется своей функцией.
+import { differentInteger } from "../similar-task.js";
 
 function randomInteger(rng, minimum, maximum) {
   return Math.floor(rng() * (maximum - minimum + 1)) + minimum;
 }
 
-function makeConditionTask(rng) {
-  const limit = randomInteger(rng, 4, 12);
+function makeConditionTask(rng, reference = null) {
+  const limit = reference ? differentInteger(rng, 4, 12, reference.meta.limit) : randomInteger(rng, 4, 12);
   const cases = [
     { s: limit + 2, t: limit - 1 }, // условие ложно: это гарантированный ответ NO
     { s: limit - 1, t: limit + 2 }, // первое условие истинно
@@ -36,8 +37,10 @@ function makeConditionTask(rng) {
   };
 }
 
-function makeLoopTask(rng) {
-  const numbers = Array.from({ length: randomInteger(rng, 3, 5) }, () => randomInteger(rng, 1, 9));
+function makeLoopTask(rng, reference = null) {
+  const length = reference?.meta.numbers.length ?? randomInteger(rng, 3, 5);
+  const numbers = Array.from({ length }, () => randomInteger(rng, 1, 9));
+  if (reference) numbers[0] = differentInteger(rng, 1, 9, reference.meta.numbers[0]);
   let total = 0;
   const trace = numbers.map((number, index) => {
     total += number;
@@ -59,6 +62,12 @@ function makeLoopTask(rng) {
 
 export function generateTask(rng = Math.random) {
   return rng() < 0.7 ? makeConditionTask(rng) : makeLoopTask(rng);
+}
+
+export function generateVariantTask(variantId, rng = Math.random, reference = null) {
+  if (variantId === "condition") return makeConditionTask(rng, reference);
+  if (variantId === "loop") return makeLoopTask(rng, reference);
+  throw new Error(`Неизвестный тип программы: ${variantId}`);
 }
 
 export function simulateCondition(limit, s, t) {
