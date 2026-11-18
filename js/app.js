@@ -5,9 +5,9 @@ import { clearProgress, loadProgress, recordAttempt, shouldCountAnswer } from ".
 
 const app = document.querySelector("#app");
 const modes = [
-  { id: "study", label: "Разбор темы", note: "Теория и пример" },
-  { id: "practice", label: "Практика", note: "Решай с подсказкой" },
-  { id: "test", label: "Самопроверка", note: "Сначала реши сам" }
+  { id: "study", label: "Изучай", note: "Теория и пример" },
+  { id: "practice", label: "Тренируйся", note: "Задачи с подсказкой" },
+  { id: "test", label: "Проверь себя", note: "Решай самостоятельно" }
 ];
 
 const state = {
@@ -37,13 +37,13 @@ function allAttempts(progress = state.progress) {
 }
 
 function accuracy(attempts, correct) {
-  if (attempts === 0) return "—";
+  if (attempts === 0) return "-";
   return `${Math.round((correct / attempts) * 100)}%`;
 }
 
 const heroSteps = [
   { label: "Число", value: "1011₂", note: "Запись в двоичной системе" },
-  { label: "Разряды", value: "1×8 + 0×4 + 1×2 + 1×1", note: "Каждая позиция — степень основания 2" },
+  { label: "Разряды", value: "1×8 + 0×4 + 1×2 + 1×1", note: "Каждая позиция - степень основания 2" },
   { label: "Результат", value: "11₁₀", note: "То же значение в десятичной системе" }
 ];
 
@@ -103,10 +103,10 @@ function renderHome() {
           <h1 id="home-title">Изучай.<br>Пробуй.<br><span>Понимай.</span></h1>
           <p class="hero-description">Информатика через интерактивные задания и разбор решений. Пять тем для практики в 8–9 классе.</p>
           <button class="primary-button" type="button" data-action="start-first">Начать тренировку <span aria-hidden="true">↘</span></button>
-          <div class="hero-footnote"><span class="mini-check">✓</span> Новые задачи · пошаговый разбор · сохранение прогресса</div>
+          <div class="hero-footnote"><span class="mini-check">✓</span> Задания с проверкой · подсказки · разбор решений</div>
         </div>
         <div class="hero-lab" aria-label="Интерактивный пример перевода числа">
-          <div class="lab-head"><div><span class="live-dot"></span><span>ЖИВОЙ ПРИМЕР</span></div><span>ШАГ 0${state.heroStep + 1} / 03</span></div>
+          <div class="lab-head"><div><span class="live-dot"></span><span>ИНТЕРАКТИВНЫЙ ПРИМЕР</span></div><span>ШАГ 0${state.heroStep + 1} / 03</span></div>
           <div class="lab-flow" role="group" aria-label="Шаги перевода числа">
             ${heroSteps.map((step, index) => `<button class="lab-step ${index === state.heroStep ? "is-active" : ""} ${index < state.heroStep ? "is-done" : ""}" type="button" data-action="hero-step" data-step="${index}" aria-pressed="${index === state.heroStep}"><span>0${index + 1}</span><strong>${escapeHtml(step.label)}</strong><small>${index === state.heroStep ? escapeHtml(step.value) : index < state.heroStep ? "✓ Готово" : "Ожидает"}</small></button>${index < heroSteps.length - 1 ? `<span class="flow-connector ${index < state.heroStep ? "is-done" : ""}" aria-hidden="true">→</span>` : ""}`).join("")}
           </div>
@@ -121,13 +121,12 @@ function renderHome() {
       </section>
       <section class="method-strip" aria-label="Как учиться в ИнфоЛаб">
         <div class="method-intro"><span class="method-index">ТВОЙ ЦИКЛ ОБУЧЕНИЯ</span><strong>От первого шага до уверенного ответа</strong></div>
-        <div class="method-step"><b>01</b><span><strong>Разбор темы</strong><small>Теория и пример</small></span></div>
+        <div class="method-step"><b>01</b><span><strong>Изучай</strong><small>Теория и пример</small></span></div>
         <span class="method-arrow" aria-hidden="true">→</span>
-        <div class="method-step"><b>02</b><span><strong>Практика</strong><small>Задачи с подсказкой</small></span></div>
+        <div class="method-step"><b>02</b><span><strong>Тренируйся</strong><small>Задачи с подсказкой</small></span></div>
         <span class="method-arrow" aria-hidden="true">→</span>
-        <div class="method-step"><b>03</b><span><strong>Самопроверка</strong><small>Проверь свой результат</small></span></div>
+        <div class="method-step"><b>03</b><span><strong>Проверь себя</strong><small>Решай самостоятельно</small></span></div>
       </section>
-      <p class="demo-note">Учебная версия ИнфоЛаб · прогресс хранится только в этом браузере</p>
     </main>`;
 }
 
@@ -142,13 +141,13 @@ function renderProgress() {
 
   return `
     <main class="page-content progress-page">
-      <div class="page-title-row"><div><p class="eyebrow">твоя практика</p><h1>Мой прогресс</h1><p class="page-subtitle">Результаты остаются на этом устройстве. Здесь нет имени и личных данных.</p></div><button class="quiet-button" type="button" data-action="home">← К темам</button></div>
+      <div class="page-title-row"><div><p class="eyebrow">твоя практика</p><h1>Мой прогресс</h1><p class="page-subtitle">Твои результаты по всем пяти темам.</p></div><button class="quiet-button" type="button" data-action="home">← К темам</button></div>
       <section class="summary-grid" aria-label="Общая статистика">
         <div class="summary-card summary-main"><span>Всего ответов</span><strong>${total}</strong><small>в пяти тематических модулях</small></div>
         <div class="summary-card"><span>Верных ответов</span><strong>${correct}</strong><small>из ${total} попыток</small></div>
         <div class="summary-card"><span>Точность</span><strong>${accuracy(total, correct)}</strong><small>по всем темам</small></div>
       </section>
-      <section class="progress-list" aria-labelledby="progress-list-title"><div class="section-heading compact"><div><p class="eyebrow">по темам</p><h2 id="progress-list-title">Шаг за шагом</h2></div><span class="private-label">● только у тебя</span></div>${rows}</section>
+      <section class="progress-list" aria-labelledby="progress-list-title"><div class="section-heading compact"><div><p class="eyebrow">по темам</p><h2 id="progress-list-title">Шаг за шагом</h2></div></div>${rows}</section>
       <div class="progress-actions"><p>Хочешь начать заново? Счётчики можно очистить в любой момент.</p><button class="text-button danger-text" type="button" data-action="clear-progress">Очистить прогресс</button></div>
       ${state.notice ? `<p class="inline-notice" role="status">${escapeHtml(state.notice)}</p>` : ""}
     </main>`;
@@ -179,9 +178,9 @@ function renderLesson(module) {
 
 function renderModeNotice() {
   const notes = {
-    study: "Разбирай шаги сам. Переключение режима сохранит ход решения.",
-    practice: "Подсказка появится по запросу. Задание и введённый ответ сохраняются при смене режима.",
-    test: "Решение появится после ответа. Переключение режима не сбросит задание или введённый ответ."
+    study: "Разберись в примере и пройди шаги сам.",
+    practice: "Подсказка появится, когда понадобится.",
+    test: "Решай самостоятельно, затем посмотри разбор."
   };
   return `<p class="mode-note"><span class="mode-status-dot" aria-hidden="true"></span>${notes[state.mode]}</p>`;
 }
@@ -258,7 +257,7 @@ function renderDrawing(task) {
 
 function renderTrace(task) {
   if (!task.code) return "";
-  return `<div class="code-card"><div class="code-card-head"><span><i aria-hidden="true"></i> ФИКСИРОВАННАЯ ПРОГРАММА</span><small>Python · учебная модель</small></div><pre><code>${escapeHtml(task.code)}</code></pre></div>`;
+  return `<div class="code-card"><div class="code-card-head"><span><i aria-hidden="true"></i> ПРИМЕР ПРОГРАММЫ</span><small>Python</small></div><pre><code>${escapeHtml(task.code)}</code></pre></div>`;
 }
 
 function renderFeedback(task) {
@@ -354,7 +353,6 @@ function renderSystemsWalkthrough(module) {
     ${activity}
     ${guide.phase !== "done" ? `<button class="text-button guided-hint-button" type="button" data-action="guided-hint">${guide.hintVisible ? "Скрыть подсказку" : "Нужна подсказка?"}</button>` : ""}
     ${guide.hintVisible && guide.phase !== "done" ? `<p class="hint-box">${escapeHtml(task.hint)}</p>` : ""}
-    <p class="guided-stat-note">Учебный разбор не меняет результаты. Для статистики решай задания в режимах «Практика» и «Самопроверка».</p>
   </section>`;
 }
 
@@ -373,7 +371,7 @@ function renderModuleScreen() {
       <div class="mode-switcher" role="group" aria-label="Режим занятия">${modeButtons}</div>
       ${renderModeNotice()}
       <div class="learning-layout ${state.mode === "test" ? "solo-task" : "with-lesson"}">${mainActivity}${renderLesson(module)}</div>
-      <div class="module-bottom"><span>Задания генерируются на устройстве</span><button type="button" class="text-button" data-action="progress">Открыть результаты ↗</button></div>
+      <div class="module-bottom"><button type="button" class="text-button" data-action="progress">Открыть результаты ↗</button></div>
     </main>`;
 }
 
@@ -382,7 +380,7 @@ function render() {
   if (state.screen === "home") screen = renderHome();
   else if (state.screen === "progress") screen = renderProgress();
   else screen = renderModuleScreen();
-  app.innerHTML = `${renderHeader()}${screen}<footer class="site-footer"><span>ИНФОЛАБ</span><span>Интерактивная лаборатория информатики</span><span>Прогресс хранится локально</span></footer>`;
+  app.innerHTML = `${renderHeader()}${screen}<footer class="site-footer"><span>ИНФОЛАБ</span><span>Интерактивная лаборатория информатики</span></footer>`;
 }
 
 function openModule(moduleId) {
@@ -471,7 +469,7 @@ function checkGuidedDivision(form) {
   } else if (quotientCorrect) {
     guide.feedback = { kind: "is-wrong", message: "Частное верное. Проверь остаток: число − частное × основание." };
   } else if (remainderCorrect) {
-    guide.feedback = { kind: "is-wrong", message: "Остаток верный. Частное — целое число раз, сколько основание помещается в делимом." };
+    guide.feedback = { kind: "is-wrong", message: "Остаток верный. Частное - целое число раз, сколько основание помещается в делимом." };
   } else {
     guide.feedback = { kind: "is-wrong", message: "Проверь и частное, и остаток. Частное берём целое, а остаток должен быть меньше основания." };
   }
@@ -521,7 +519,7 @@ app.addEventListener("click", (event) => {
   else if (action === "guided-hint") { saveVisibleAnswer(); state.guided.hintVisible = !state.guided.hintVisible; render(); }
   else if (action === "clear-progress") {
     state.progress = clearProgress();
-    state.notice = "Прогресс очищен на этом устройстве.";
+    state.notice = "Результаты очищены.";
     render();
   }
 });
@@ -547,12 +545,7 @@ app.addEventListener("submit", (event) => {
   if (counted) {
     state.progress = recordAttempt(module.id, result.correct);
     state.attemptRecorded = true;
-    result.message += " Первая попытка учтена; следующие проверки не изменят статистику.";
-  } else if (result.empty && state.attemptRecorded) {
-    result.message += " Первая попытка уже учтена и не изменится.";
-  } else if (!result.empty) {
-    result.message += " Первая попытка уже учтена; эта проверка нужна для тренировки.";
-  }
+  } else if (state.attemptRecorded) result.message += " В результатах учитывается первая попытка.";
   state.feedback = { result, counted };
   render();
 });

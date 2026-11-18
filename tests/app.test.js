@@ -118,7 +118,7 @@ test("экраны сохраняют ответы, считают первую 
   };
   click({ action: "guided-hint" });
   assert.match(root.innerHTML, /value="999"/, "подсказка сохраняет введённые промежуточные числа");
-  assert.match(root.innerHTML, /Частное — целая часть/);
+  assert.match(root.innerHTML, /Частное - целая часть/);
 
   click({ mode: "practice" });
   click({ mode: "study" });
@@ -229,6 +229,6 @@ test("экраны сохраняют ответы, считают первую 
 
   click({ action: "progress" });
   click({ action: "clear-progress" });
-  assert.match(root.innerHTML, /Прогресс очищен/);
+  assert.match(root.innerHTML, /Результаты очищены/);
   assert.equal(storage.getItem(STORAGE_KEY), null, "очистка в интерфейсе удаляет только сохранённый прогресс");
 });

@@ -30,7 +30,7 @@ function makeConditionTask(rng) {
     answer,
     code: `s = int(input())\nt = int(input())\nif (s < ${limit}) or (t > ${limit}):\n    print("YES")\nelse:\n    print("NO")`,
     hint: "NO печатается только тогда, когда обе части условия ложны.",
-    steps: runs.map((run, index) => `Запуск ${index + 1}: s < ${limit} — ${run.firstIsTrue ? "истина" : "ложь"}; t > ${limit} — ${run.secondIsTrue ? "истина" : "ложь"}; программа печатает ${run.output}.`),
+    steps: runs.map((run, index) => `Запуск ${index + 1}: s < ${limit} - ${run.firstIsTrue ? "истина" : "ложь"}; t > ${limit} - ${run.secondIsTrue ? "истина" : "ложь"}; программа печатает ${run.output}.`),
     lessonExample: "Условие с ИЛИ истинно, если истинна хотя бы одна его часть. Ветку else программа выбирает, когда всё условие ложно.",
     meta: { limit, runs }
   };
