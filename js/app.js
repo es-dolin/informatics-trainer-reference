@@ -302,14 +302,19 @@ function renderArithmeticColumn(guide) {
   const active = steps[index];
   const position = active?.columnPosition ?? active?.multiplierPosition;
   const completed = steps.slice(0, history.length);
-  const cells = (number, isMultiplier = false) => [...number.padStart(width, " ")].map((digit, column) =>
-    `<td${position === width - column && (!active?.multiplierPosition || isMultiplier) ? ' class="is-active"' : ""}>${digit === " " ? "&nbsp;" : escapeHtml(digit)}</td>`).join("");
+  // У произведения оставляем место слева для длинного результата, но знак
+  // ставим рядом с исходными числами, а не у дальнего края этой области.
+  const operatorColumn = width - Math.max(left.length, right.length) - 1;
+  const cells = (number, isMultiplier = false, showOperator = false) => [...number.padStart(width, " ")].map((digit, column) => {
+    if (showOperator && column === operatorColumn) return `<td class="column-operator">${operation}</td>`;
+    return `<td${position === width - column && (!active?.multiplierPosition || isMultiplier) ? ' class="is-active"' : ""}>${digit === " " ? "&nbsp;" : escapeHtml(digit)}</td>`;
+  }).join("");
 
   let resultRows;
   if (operation === "×") {
     const partials = completed.filter((item) => item.multiplierPosition);
-    resultRows = partials.map((item) => `<tr><th scope="row">${item.multiplierPosition}</th>${cells(item.fields[0].answer)}</tr>`).join("");
-    if (!resultRows) resultRows = `<tr><th scope="row">=</th>${cells("?")}</tr>`;
+    resultRows = partials.map((item) => `<tr><th scope="row"><span class="sr-only">Частичное произведение для разряда ${item.multiplierPosition}</span></th>${cells(item.fields[0].answer)}</tr>`).join("");
+    if (!resultRows) resultRows = `<tr><th scope="row"><span class="sr-only">Частичное произведение</span></th>${cells("?")}</tr>`;
   } else {
     const digits = Array(width).fill("·");
     completed.filter((item) => item.columnPosition).forEach((item) => { digits[width - item.columnPosition] = item.fields[0].answer; });
@@ -320,7 +325,7 @@ function renderArithmeticColumn(guide) {
     }
   }
   const carry = active?.columnPosition ? `<p class="column-note">${operation === "+" ? "Перенос" : "Займ"} из предыдущего разряда: ${active.incomingCarry}</p>` : "";
-  return `<figure class="arithmetic-column"><figcaption>${operation === "×" ? "Умножение столбиком" : "Считаем столбиком"} · основание ${base}</figcaption><table aria-label="Вычисление столбиком"><tbody><tr><th scope="row">&nbsp;</th>${cells(left)}</tr><tr class="column-separator"><th scope="row">${operation}</th>${cells(right, true)}</tr>${resultRows}</tbody></table>${operation === "×" && completed.some((item) => item.multiplierPosition) ? '<p class="column-note">Частичные произведения после проверки каждого разряда.</p>' : carry}</figure>`;
+  return `<figure class="arithmetic-column"><figcaption>${operation === "×" ? "Умножение столбиком" : "Считаем столбиком"} · основание ${base}</figcaption><table aria-label="Вычисление столбиком"><tbody><tr><th scope="row">&nbsp;</th>${cells(left)}</tr><tr class="column-separator"><th scope="row">${operation === "×" ? "&nbsp;" : operation}</th>${cells(right, true, operation === "×")}</tr>${resultRows}</tbody></table>${operation === "×" && completed.some((item) => item.multiplierPosition) ? '<p class="column-note">Частичные произведения после проверки каждого разряда.</p>' : carry}</figure>`;
 }
 
 function renderLearningTruthTable(guide) {

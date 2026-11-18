@@ -61,6 +61,50 @@ async function checkLayout(label) {
   assert.deepEqual(overflow.wide, [], `${label}: блоки с переполнением`);
 }
 
+// Проверяем не только общий размер страницы, но и внутреннее расположение текста:
+// отсутствие горизонтальной прокрутки не доказывает, что подпись не обрезана.
+async function checkHeroAlignment(label) {
+  const buttons = await evaluate(`Array.from(document.querySelectorAll('.lab-step'), button => {
+    const content = document.createRange();
+    content.selectNodeContents(button.querySelector('strong'));
+    const box = button.getBoundingClientRect();
+    const text = content.getBoundingClientRect();
+    return { centerX: Math.abs((box.left + box.right - text.left - text.right) / 2),
+      centerY: Math.abs((box.top + box.bottom - text.top - text.bottom) / 2),
+      left: text.left - box.left, right: box.right - text.right,
+      height: box.height, lines: content.getClientRects().length, label: button.textContent.trim() };
+  })`);
+  assert.equal(buttons.length, 3, `${label}: три шага примера`);
+  assert.ok(buttons.every((button) => button.centerX <= 2 && button.centerY <= 2), `${label}: подпись не по центру: ${JSON.stringify(buttons)}`);
+  assert.ok(buttons.every((button) => button.left >= 7 && button.right >= 7 && button.height >= 44), `${label}: недостаточно места внутри кнопки: ${JSON.stringify(buttons)}`);
+}
+
+async function checkSystemSelectors(label) {
+  const fields = await evaluate(`(() => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    return ['source-base', 'target-base'].map(id => {
+      const select = document.getElementById(id);
+      const box = select.getBoundingClientRect();
+      const style = getComputedStyle(select);
+      context.font = style.font;
+      const longest = Math.max(...Array.from(select.options, option => context.measureText(option.textContent).width));
+      const left = parseFloat(style.paddingLeft);
+      const right = parseFloat(style.paddingRight);
+      return { id, top: box.top, bottom: box.bottom, height: box.height, width: box.width,
+        available: select.clientWidth - left - right, longest, right };
+    });
+  })()`);
+  assert.equal(fields.length, 2, `${label}: два поля выбора систем`);
+  for (const field of fields) {
+    assert.ok(field.height >= 44 && field.right >= 26, `${label}: тесное поле или стрелка: ${JSON.stringify(field)}`);
+    assert.ok(field.available + 2 >= field.longest, `${label}: название системы не помещается: ${JSON.stringify(field)}`);
+  }
+  assert.ok(Math.abs(fields[0].height - fields[1].height) <= 1, `${label}: рамки разной высоты: ${JSON.stringify(fields)}`);
+  const sameRow = Math.abs(fields[0].top - fields[1].top) < fields[0].height;
+  if (sameRow) assert.ok(Math.abs(fields[0].top - fields[1].top) <= 1, `${label}: рамки не выровнены: ${JSON.stringify(fields)}`);
+}
+
 async function changeVariant(value) {
   await evaluate(`(() => {
     const value = ${JSON.stringify(value)};
@@ -161,14 +205,27 @@ try {
   await command("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
   await command("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
   assert.equal(await evaluate("document.activeElement.classList.contains('topnav-link')"), true, "Tab переводит фокус в навигацию");
-  const sizes = [320, 390, 768, 1440];
+  const sizes = [320, 390, 520, 720, 721, 768, 820, 950, 951, 1024, 1100, 1440];
   for (const width of sizes) {
     await command("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     await checkLayout(`Главная ${width}`);
+    await checkHeroAlignment(`Главная ${width}`);
     await screenshot(`home-${width}`);
   }
   // Отмена смены задания сохраняет черновик; открытая теория не закрывается после проверки.
   await click('[data-module="systems"]');
+  for (const width of sizes) {
+    await command("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
+    await checkSystemSelectors(`Системы счисления ${width}`);
+    if ([320, 721, 768, 820, 950, 1024].includes(width)) await screenshot(`systems-controls-${width}`);
+  }
+  // Оформление стрелки не должно превращать настоящий select в декоративный блок.
+  await changeVariant("convert-10-2");
+  await evaluate("document.getElementById('source-base').focus()");
+  assert.equal(await evaluate("document.activeElement.tagName"), "SELECT");
+  await command("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 });
+  await command("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 });
+  assert.equal(await evaluate("document.getElementById('source-base').value"), "16", "выбор исходной системы работает с клавиатуры");
   const originalTask = await shownTask();
   await evaluate("document.querySelector('.topic-theory').open = true; document.querySelector('[name=learning-0]').value = '123'; globalThis.confirm = () => false");
   await evaluate(`(() => { const select = document.getElementById('source-base'); const option = [...select.options].find(item => !item.disabled && item.value !== select.value); select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
@@ -281,6 +338,36 @@ try {
     await click('[data-action="home"]');
   }
   assert.equal(JSON.stringify(await storedProgress()), beforeVariants);
+  // Максимальные числа генератора дают по пять двоичных разрядов.
+  // Проверяем столбик и после каждого частичного произведения: появившиеся
+  // строки тоже должны помещаться внутри панели на узком экране.
+  await click('[data-module="arithmetic"]');
+  await evaluate("globalThis.Math.random = () => 0.9999");
+  await changeVariant("multiply-2");
+  const widestTask = await shownTask();
+  assert.equal(widestTask.meta.left.length, 5);
+  assert.equal(widestTask.meta.right.length, 5);
+  await command("Emulation.setDeviceMetricsOverride", { width: 320, height: 900, deviceScaleFactor: 1, mobile: false });
+  const assertColumnFits = async () => {
+    const result = await evaluate(`(() => {
+      const column = document.querySelector('.arithmetic-column');
+      const table = column.querySelector('table');
+      const bounds = column.getBoundingClientRect();
+      const tableBounds = table.getBoundingClientRect();
+      return { scroll: column.scrollWidth, client: column.clientWidth,
+        left: tableBounds.left - bounds.left, right: bounds.right - tableBounds.right };
+    })()`);
+    assert.ok(result.scroll <= result.client + 1 && result.left >= 0 && result.right >= 0,
+      `Максимальное двоичное умножение 320: столбик не помещается: ${JSON.stringify(result)}`);
+  };
+  await assertColumnFits();
+  const widestSteps = createLearningSteps(widestTask);
+  for (let index = 0; index < widestSteps.length; index += 1) {
+    await fillAndSubmit("learning-step-form", widestSteps[index].fields.map((field) => field.answer));
+    await assertColumnFits();
+    if (index === widestSteps.length - 2) await screenshot("arithmetic-widest-320");
+  }
+  await click('[data-action="home"]');
   // Для 3 → 4 подходят и 211, и 12. Показываем именно введённый путь.
   await click('[data-module="executors"]');
   await evaluate("globalThis.Math.random = (() => { const values = [0, 0, 0.99, 0, 0]; return () => values.shift() ?? 0; })()");
