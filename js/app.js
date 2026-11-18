@@ -7,7 +7,7 @@ import { taskVariants, getTaskVariant, generateTaskForVariant, generateSimilarTa
 
 const app = document.querySelector("#app");
 const modes = [
-  { id: "study", label: "Изучай", note: "Пример по шагам" },
+  { id: "study", label: "Изучай и тренируйся", note: "Задачи по шагам" },
   { id: "test", label: "Проверь себя", note: "Без подсказок" }
 ];
 
@@ -97,10 +97,8 @@ function renderHome() {
     <main class="page-content home-page">
       <section class="hero-grid" aria-labelledby="home-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-line"></span> информатика в действии</p>
-          <h1 id="home-title">Разберись<br>по шагам.<br><span>Реши сам.</span></h1>
+          <h1 id="home-title">Информатика<br><span>на практике</span></h1>
           <p class="hero-description">Информатика через интерактивные задания и разбор решений. Пять тем для практики в 8–9 классе.</p>
-          <button class="primary-button" type="button" data-action="start-first">Начать изучение <span aria-hidden="true">↘</span></button>
           <div class="hero-footnote"><span class="mini-check">✓</span> Задания с проверкой · подсказки · разбор решений</div>
         </div>
         <div class="hero-lab" aria-label="Интерактивный пример перевода числа">
@@ -119,7 +117,7 @@ function renderHome() {
       </section>
       <section class="method-strip" aria-label="Как учиться в ИнфоЛаб">
         <div class="method-intro"><span class="method-index">ТВОЙ ЦИКЛ ОБУЧЕНИЯ</span><strong>От первого шага до уверенного ответа</strong></div>
-        <div class="method-step"><b>01</b><span><strong>Изучай</strong><small>Пример по шагам</small></span></div>
+        <div class="method-step"><b>01</b><span><strong>Изучай и тренируйся</strong><small>Задачи по шагам</small></span></div>
         <span class="method-arrow" aria-hidden="true">→</span>
         <div class="method-step"><b>02</b><span><strong>Проверь себя</strong><small>Решай самостоятельно</small></span></div>
       </section>
@@ -454,7 +452,6 @@ app.addEventListener("click", (event) => {
   if (["new-task", "review-task", "start-test"].includes(action) && state.screen !== "module") return;
   if (action === "home") goHome();
   else if (action === "progress") { saveVisibleAnswer(); state.screen = "progress"; state.notice = ""; render(); }
-  else if (action === "start-first") openModule(modules[0].id);
   else if (action === "hero-next") { state.heroStep = (state.heroStep + 1) % heroSteps.length; render(); }
   else if (action === "hero-step") { state.heroStep = Number(target.dataset.step); render(); }
   else if (action === "new-task") { nextTask(); render(); }
