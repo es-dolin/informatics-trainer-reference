@@ -80,7 +80,6 @@ function renderHeader() {
 }
 
 function renderHome() {
-  const completed = modules.filter((item) => state.progress.modules[item.id].attempts > 0).length;
   const cards = modules.map((item) => {
     const progress = state.progress.modules[item.id];
     return `
@@ -112,7 +111,7 @@ function renderHome() {
       </section>
 
       <section class="topic-section" aria-labelledby="topics-title">
-        <div class="section-heading"><div><h2 id="topics-title">Тренажёры</h2></div><p class="section-side-note">${completed} из 5 тем начато <span class="side-divider">·</span> 2 режима<br><span>Выбери тему и начни практику</span></p></div>
+        <div class="section-heading"><h2 id="topics-title">Тренажёры</h2></div>
         <div class="module-grid">${cards}</div>
       </section>
     </main>`;
