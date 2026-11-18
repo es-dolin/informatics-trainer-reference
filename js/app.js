@@ -264,7 +264,7 @@ function renderTaskPanel(module) {
     <div class="task-topline"><span class="task-index">САМОПРОВЕРКА</span><button class="text-button" type="button" data-action="new-task">Ещё задача ↻</button></div>
     <h2 id="task-title">${escapeHtml(task.prompt)}</h2>
     ${renderTaskVisual(task)}${drawing}${renderTrace(task)}
-    <form id="exercise-form" novalidate>${renderInput(task)}<div class="submit-row"><button class="primary-button submit-button" type="submit">Проверить ответ <span aria-hidden="true">↗</span></button><span class="enter-note">Enter ↵</span></div></form>
+    <form id="exercise-form" novalidate>${renderInput(task)}<div class="submit-row"><button class="primary-button submit-button" type="submit">Проверить ответ <span aria-hidden="true">↗</span></button></div></form>
     ${renderFeedback(task)}
   </section>`;
 }
@@ -329,7 +329,6 @@ function renderModuleScreen() {
     <div class="lesson-controls"><div class="mode-switcher" role="group" aria-label="Режим занятия">${modeButtons}</div><label class="variant-control" for="task-variant">Вид задания<select id="task-variant">${variants}</select></label></div>
     ${renderModeNotice()}
     <div class="learning-layout ${state.mode === "test" ? "solo-task" : "with-lesson"}">${state.mode === "study" ? renderLearningExample(module) : renderTaskPanel(module)}${renderLesson(module)}</div>
-    <div class="module-bottom"><button type="button" class="text-button" data-action="progress">Открыть результаты ↗</button></div>
   </main>`;
 }
 
