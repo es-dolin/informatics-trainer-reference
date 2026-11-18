@@ -1,7 +1,7 @@
 // Главный файл отвечает за экраны и события. Математические расчёты находятся
 // в отдельных модулях, а здесь мы только показываем задание и передаём ответ.
 import { modules, findModule } from "./modules/index.js";
-import { clearProgress, loadProgress, recordAttempt } from "./storage.js";
+import { clearProgress, loadProgress, recordAttempt, shouldCountAnswer } from "./storage.js";
 
 const app = document.querySelector("#app");
 const modes = [
@@ -20,6 +20,9 @@ const state = {
   feedback: null,
   notice: "",
   heroStep: 0,
+  currentAnswer: null,
+  attemptRecorded: false,
+  guided: null,
   progress: loadProgress()
 };
 
@@ -176,9 +179,9 @@ function renderLesson(module) {
 
 function renderModeNotice() {
   const notes = {
-    study: "Теория и пример доступны рядом с заданием.",
-    practice: "Подсказка появится по запросу.",
-    test: "Решение и объяснение появятся после отправки ответа."
+    study: "Разбирай шаги сам. Переключение режима сохранит ход решения.",
+    practice: "Подсказка появится по запросу. Задание и введённый ответ сохраняются при смене режима.",
+    test: "Решение появится после ответа. Переключение режима не сбросит задание или введённый ответ."
   };
   return `<p class="mode-note"><span class="mode-status-dot" aria-hidden="true"></span>${notes[state.mode]}</p>`;
 }
@@ -206,22 +209,29 @@ function renderTaskVisual(task) {
 function renderInput(task) {
   const input = task.input;
   if (input.type === "text") {
-    return `<label class="answer-label" for="answer-text">${escapeHtml(input.label)}</label><input class="answer-text" id="answer-text" name="answer" type="text" autocomplete="off" spellcheck="false" placeholder="Твой ответ…">`;
+    const value = typeof state.currentAnswer === "string" ? state.currentAnswer : "";
+    return `<label class="answer-label" for="answer-text">${escapeHtml(input.label)}</label><input class="answer-text" id="answer-text" name="answer" type="text" value="${escapeHtml(value)}" autocomplete="off" spellcheck="false" placeholder="Твой ответ…">`;
   }
   if (input.type === "choice") {
     const options = input.options.map((option, index) => {
       const item = typeof option === "string" ? { value: option, label: option } : option;
-      return `<label class="choice-option"><input type="radio" name="answer" value="${escapeHtml(item.value)}"><span class="choice-marker">${index + 1}</span><span>${escapeHtml(item.label)}</span></label>`;
+      const checked = state.currentAnswer === item.value ? " checked" : "";
+      return `<label class="choice-option"><input type="radio" name="answer" value="${escapeHtml(item.value)}"${checked}><span class="choice-marker">${index + 1}</span><span>${escapeHtml(item.label)}</span></label>`;
     }).join("");
     return `<fieldset class="choice-fieldset"><legend>${escapeHtml(input.label)}</legend><div class="choice-list">${options}</div></fieldset>`;
   }
   if (input.type === "multi-choice") {
-    const options = input.options.map((option) => `<label class="multi-option"><input type="checkbox" name="answer" value="${escapeHtml(option.value)}"><span>${escapeHtml(option.label)}</span></label>`).join("");
+    const selected = Array.isArray(state.currentAnswer) ? state.currentAnswer : [];
+    const options = input.options.map((option) => {
+      const checked = selected.includes(option.value) ? " checked" : "";
+      return `<label class="multi-option"><input type="checkbox" name="answer" value="${escapeHtml(option.value)}"${checked}><span>${escapeHtml(option.label)}</span></label>`;
+    }).join("");
     return `<fieldset class="choice-fieldset"><legend>${escapeHtml(input.label)}</legend><div class="multi-list">${options}</div></fieldset>`;
   }
   if (input.type === "truth-table") {
     const headings = input.variables.map((name) => `<th scope="col">${escapeHtml(name)}</th>`).join("");
-    const rows = input.rows.map((values, index) => `<tr>${input.variables.map((name) => `<td>${values[name]}</td>`).join("")}<td><label class="sr-only" for="truth-${index}">Результат строки ${index + 1}</label><select id="truth-${index}" class="table-answer" data-answer-index="${index}"><option value="">?</option><option value="0">0</option><option value="1">1</option></select></td></tr>`).join("");
+    const selected = Array.isArray(state.currentAnswer) ? state.currentAnswer : [];
+    const rows = input.rows.map((values, index) => `<tr>${input.variables.map((name) => `<td>${values[name]}</td>`).join("")}<td><label class="sr-only" for="truth-${index}">Результат строки ${index + 1}</label><select id="truth-${index}" class="table-answer" data-answer-index="${index}"><option value=""${selected[index] ? "" : " selected"}>?</option><option value="0"${selected[index] === "0" ? " selected" : ""}>0</option><option value="1"${selected[index] === "1" ? " selected" : ""}>1</option></select></td></tr>`).join("");
     return `<div class="truth-table-wrap"><table class="truth-table"><thead><tr>${headings}<th scope="col">Результат</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   return "";
@@ -273,10 +283,88 @@ function renderTaskPanel(module) {
     </section>`;
 }
 
+function renderGuideFeedback(guide) {
+  if (!guide.feedback) return "";
+  return `<p class="guided-feedback ${guide.feedback.kind}" role="status">${escapeHtml(guide.feedback.message)}</p>`;
+}
+
+function renderGuidedSolution(guide) {
+  const task = guide.task;
+  const reversedRemainders = task.meta.divisions.map((step) => step.remainder).reverse().join(" · ");
+  const equations = task.meta.divisions.map((step) =>
+    `<li>${step.dividend} ÷ ${task.meta.targetBase} = ${step.quotient}, остаток ${escapeHtml(step.remainder)}.</li>`
+  ).join("");
+
+  return `<details class="guided-solution"${guide.phase === "done" ? " open" : ""}>
+    <summary>Полный алгоритм решения</summary>
+    <ol>${equations}</ol>
+    <p>Читаем остатки снизу вверх: <code>${escapeHtml(reversedRemainders)}</code>. Получаем <strong>${escapeHtml(task.answer)}</strong>, значит ${task.meta.number}<sub>10</sub> = ${escapeHtml(task.answer)}<sub>${task.meta.targetBase}</sub>.</p>
+  </details>`;
+}
+
+function renderSystemsWalkthrough(module) {
+  const guide = state.guided;
+  const task = guide.task;
+  const base = task.meta.targetBase;
+  const previousSteps = task.meta.divisions.slice(0, guide.stepIndex).map((step) =>
+    `<li>${step.dividend} ÷ ${base} = ${step.quotient}, остаток ${escapeHtml(step.remainder)}</li>`
+  ).join("");
+  let activity = "";
+
+  if (guide.phase === "division") {
+    const step = task.meta.divisions[guide.stepIndex];
+    activity = `
+      <div class="guided-current-step">
+        <div class="guided-progress"><span>Деление ${guide.stepIndex + 1} из ${task.meta.divisions.length}</span><span>Основание ${base}</span></div>
+        <p>Раздели число на основание. Запиши целое частное и остаток.</p>
+        <div class="guided-equation"><code>${step.dividend} ÷ ${base} = <b>?</b>, остаток <b>?</b></code></div>
+        <form id="guided-division-form" class="guided-form">
+          <label>Частное<input name="quotient" type="text" inputmode="numeric" value="${escapeHtml(guide.draft.quotient)}" autocomplete="off" aria-label="Целое частное"></label>
+          <label>Остаток<input name="remainder" type="text" maxlength="1" value="${escapeHtml(guide.draft.remainder)}" autocomplete="off" aria-label="Остаток от деления"></label>
+          <button class="primary-button" type="submit">Проверить шаг <span aria-hidden="true">↗</span></button>
+        </form>
+        ${renderGuideFeedback(guide)}
+      </div>`;
+  } else if (guide.phase === "answer") {
+    activity = `
+      <div class="guided-current-step">
+        <div class="guided-progress"><span>Последний шаг</span><span>Собери число</span></div>
+        <p>Все частные найдены. Теперь прочитай остатки снизу вверх и запиши ответ.</p>
+        <form id="guided-final-form" class="guided-form guided-final-form">
+          <label>Число в основании ${base}<input name="finalAnswer" type="text" value="${escapeHtml(guide.draft.finalAnswer)}" autocomplete="off" spellcheck="false" aria-label="Итоговое число в новом основании"></label>
+          <button class="primary-button" type="submit">Проверить число <span aria-hidden="true">↗</span></button>
+        </form>
+        ${renderGuideFeedback(guide)}
+        ${renderGuidedSolution(guide)}
+      </div>`;
+  } else {
+    activity = `
+      <div class="guided-complete" role="status">
+        <span class="guided-complete-mark" aria-hidden="true">✓</span>
+        <div><strong>Перевод выполнен</strong><p>${task.meta.number}<sub>10</sub> = ${escapeHtml(task.answer)}<sub>${base}</sub></p></div>
+      </div>
+      ${renderGuidedSolution(guide)}`;
+  }
+
+  return `<section class="task-panel ${module.color} guided-panel" aria-labelledby="task-title">
+    <div class="task-topline"><div><span class="task-index">ИНТЕРАКТИВНЫЙ РАЗБОР</span><span class="task-dot" aria-hidden="true"></span><span class="task-mode-label">${task.meta.number}<sub>10</sub> → ?<sub>${base}</sub></span></div><button class="icon-button" type="button" data-action="new-task" aria-label="Начать новый разбор" title="Начать новый разбор">↻</button></div>
+    <h2 id="task-title">${escapeHtml(task.prompt)}</h2>
+    <p class="guided-intro">На каждом шаге введи частное и остаток. В конце соберём цифры в правильном порядке.</p>
+    ${previousSteps ? `<ol class="guided-history" aria-label="Уже проверенные деления">${previousSteps}</ol>` : ""}
+    ${activity}
+    ${guide.phase !== "done" ? `<button class="text-button guided-hint-button" type="button" data-action="guided-hint">${guide.hintVisible ? "Скрыть подсказку" : "Нужна подсказка?"}</button>` : ""}
+    ${guide.hintVisible && guide.phase !== "done" ? `<p class="hint-box">${escapeHtml(task.hint)}</p>` : ""}
+    <p class="guided-stat-note">Учебный разбор не меняет результаты. Для статистики решай задания в режимах «Практика» и «Самопроверка».</p>
+  </section>`;
+}
+
 function renderModuleScreen() {
   const module = findModule(state.moduleId);
   const modeButtons = modes.map((mode) => `<button type="button" class="mode-tab ${state.mode === mode.id ? "is-active" : ""}" data-mode="${mode.id}" aria-pressed="${state.mode === mode.id}"><strong>${escapeHtml(mode.label)}</strong><span>${escapeHtml(mode.note)}</span></button>`).join("");
   const progress = state.progress.modules[module.id];
+  const mainActivity = state.mode === "study" && module.id === "systems"
+    ? renderSystemsWalkthrough(module)
+    : renderTaskPanel(module);
 
   return `
     <main class="page-content module-page">
@@ -284,7 +372,7 @@ function renderModuleScreen() {
       <section class="module-heading ${module.color}"><div><p class="eyebrow">тема ${module.number} <span>·</span> ${escapeHtml(module.skills)}</p><h1>${escapeHtml(module.title)}</h1><p>${escapeHtml(module.description)}</p></div><div class="module-score"><span>ТВОЙ РЕЗУЛЬТАТ</span><strong>${progress.correct}<i>/</i>${progress.attempts}</strong><small>верных ответов</small></div></section>
       <div class="mode-switcher" role="group" aria-label="Режим занятия">${modeButtons}</div>
       ${renderModeNotice()}
-      <div class="learning-layout ${state.mode === "test" ? "solo-task" : "with-lesson"}">${renderTaskPanel(module)}${renderLesson(module)}</div>
+      <div class="learning-layout ${state.mode === "test" ? "solo-task" : "with-lesson"}">${mainActivity}${renderLesson(module)}</div>
       <div class="module-bottom"><span>Задания генерируются на устройстве</span><button type="button" class="text-button" data-action="progress">Открыть результаты ↗</button></div>
     </main>`;
 }
@@ -313,6 +401,16 @@ function refreshTasks() {
   state.exampleTask = module.generateTask();
   state.hintIsVisible = false;
   state.feedback = null;
+  state.currentAnswer = null;
+  state.attemptRecorded = false;
+  state.guided = module.id === "systems" ? {
+    task: module.generateGuidedConversionTask(),
+    stepIndex: 0,
+    phase: "division",
+    draft: { quotient: "", remainder: "", finalAnswer: "" },
+    hintVisible: false,
+    feedback: null
+  } : null;
 }
 
 function goHome() {
@@ -334,6 +432,68 @@ function answerFromForm(form) {
   return form.querySelector("[name=answer]")?.value ?? "";
 }
 
+function saveVisibleAnswer() {
+  if (typeof app.querySelector !== "function") return;
+
+  const answerForm = app.querySelector("#exercise-form");
+  if (answerForm) state.currentAnswer = answerFromForm(answerForm);
+
+  const divisionForm = app.querySelector("#guided-division-form");
+  if (divisionForm && state.guided) {
+    state.guided.draft.quotient = divisionForm.querySelector("[name=quotient]")?.value ?? "";
+    state.guided.draft.remainder = divisionForm.querySelector("[name=remainder]")?.value ?? "";
+  }
+
+  const finalForm = app.querySelector("#guided-final-form");
+  if (finalForm && state.guided) {
+    state.guided.draft.finalAnswer = finalForm.querySelector("[name=finalAnswer]")?.value ?? "";
+  }
+}
+
+function checkGuidedDivision(form) {
+  const guide = state.guided;
+  const expected = guide.task.meta.divisions[guide.stepIndex];
+  const quotientText = form.querySelector("[name=quotient]")?.value.trim() ?? "";
+  const remainderText = (form.querySelector("[name=remainder]")?.value ?? "").trim().toUpperCase();
+  guide.draft.quotient = quotientText;
+  guide.draft.remainder = remainderText;
+
+  const quotientCorrect = /^\d+$/.test(quotientText) && Number(quotientText) === expected.quotient;
+  const remainderCorrect = remainderText === expected.remainder;
+
+  if (!quotientText || !remainderText) {
+    guide.feedback = { kind: "is-neutral", message: "Заполни оба поля: частное и остаток от деления." };
+  } else if (quotientCorrect && remainderCorrect) {
+    guide.stepIndex += 1;
+    guide.draft = { quotient: "", remainder: "", finalAnswer: "" };
+    guide.feedback = { kind: "is-correct", message: "Верно! Переходим к следующему делению." };
+    if (guide.stepIndex === guide.task.meta.divisions.length) guide.phase = "answer";
+  } else if (quotientCorrect) {
+    guide.feedback = { kind: "is-wrong", message: "Частное верное. Проверь остаток: число − частное × основание." };
+  } else if (remainderCorrect) {
+    guide.feedback = { kind: "is-wrong", message: "Остаток верный. Частное — целое число раз, сколько основание помещается в делимом." };
+  } else {
+    guide.feedback = { kind: "is-wrong", message: "Проверь и частное, и остаток. Частное берём целое, а остаток должен быть меньше основания." };
+  }
+}
+
+function checkGuidedFinal(form, module) {
+  const guide = state.guided;
+  const answer = form.querySelector("[name=finalAnswer]")?.value ?? "";
+  guide.draft.finalAnswer = answer;
+  const result = module.checkAnswer(guide.task, answer);
+
+  if (result.correct) {
+    guide.phase = "done";
+    guide.feedback = null;
+  } else {
+    guide.feedback = {
+      kind: result.empty ? "is-neutral" : "is-wrong",
+      message: result.empty ? "Введи итоговую запись числа." : "Проверь порядок: остатки нужно читать снизу вверх."
+    };
+  }
+}
+
 app.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action], [data-module], [data-mode]");
   if (!target) return;
@@ -343,8 +503,9 @@ app.addEventListener("click", (event) => {
     return;
   }
   if (target.dataset.mode) {
+    saveVisibleAnswer();
     state.mode = target.dataset.mode;
-    refreshTasks();
+    if (state.mode !== "practice") state.hintIsVisible = false;
     render();
     return;
   }
@@ -356,7 +517,8 @@ app.addEventListener("click", (event) => {
   else if (action === "hero-next") { state.heroStep = (state.heroStep + 1) % heroSteps.length; render(); }
   else if (action === "hero-step") { state.heroStep = Number(target.dataset.step); render(); }
   else if (action === "new-task") { refreshTasks(); render(); }
-  else if (action === "hint") { state.hintIsVisible = !state.hintIsVisible; render(); }
+  else if (action === "hint") { saveVisibleAnswer(); state.hintIsVisible = !state.hintIsVisible; render(); }
+  else if (action === "guided-hint") { saveVisibleAnswer(); state.guided.hintVisible = !state.guided.hintVisible; render(); }
   else if (action === "clear-progress") {
     state.progress = clearProgress();
     state.notice = "Прогресс очищен на этом устройстве.";
@@ -365,16 +527,33 @@ app.addEventListener("click", (event) => {
 });
 
 app.addEventListener("submit", (event) => {
+  if (["guided-division-form", "guided-final-form"].includes(event.target.id)) {
+    event.preventDefault();
+    const module = findModule(state.moduleId);
+    if (event.target.id === "guided-division-form") checkGuidedDivision(event.target);
+    else checkGuidedFinal(event.target, module);
+    render();
+    return;
+  }
+
   if (event.target.id !== "exercise-form") return;
   event.preventDefault();
   const module = findModule(state.moduleId);
   const answer = answerFromForm(event.target);
+  state.currentAnswer = answer;
   const result = module.checkAnswer(state.task, answer);
-  state.feedback = { result };
 
-  if (!result.empty) {
+  const counted = shouldCountAnswer(result.empty, state.attemptRecorded);
+  if (counted) {
     state.progress = recordAttempt(module.id, result.correct);
+    state.attemptRecorded = true;
+    result.message += " Первая попытка учтена; следующие проверки не изменят статистику.";
+  } else if (result.empty && state.attemptRecorded) {
+    result.message += " Первая попытка уже учтена и не изменится.";
+  } else if (!result.empty) {
+    result.message += " Первая попытка уже учтена; эта проверка нужна для тренировки.";
   }
+  state.feedback = { result, counted };
   render();
 });
 

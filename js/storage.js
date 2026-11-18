@@ -20,6 +20,11 @@ function safeCount(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
 
+/** Первая непустая проверка задачи считается, следующие — нет. */
+export function shouldCountAnswer(isEmpty, attemptAlreadyCounted) {
+  return !isEmpty && !attemptAlreadyCounted;
+}
+
 /** При повреждённом JSON или недоступном хранилище возвращает пустой прогресс. */
 export function loadProgress(storage) {
   if (storage === undefined) storage = getBrowserStorage();

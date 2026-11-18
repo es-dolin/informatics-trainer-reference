@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkAnswer, fromDecimal, generateComparisonTask, generateConversionTask, generateTask, toDecimal } from "../js/modules/systems.js";
+import { checkAnswer, fromDecimal, generateComparisonTask, generateConversionTask, generateGuidedConversionTask, generateTask, toDecimal } from "../js/modules/systems.js";
 import { makeRandom } from "./helpers.js";
 
 test("перевод между основаниями сохраняет значение на границах", () => {
@@ -31,11 +31,64 @@ test("генератор преобразования всегда даёт пр
   assert.equal(checkAnswer(task, task.answer).correct, true);
 });
 
+test("сравнение создаёт правильные знаки меньше, равно и больше", () => {
+  const examples = [
+    { random: [0, 0, 0, 0, 0], sign: "<" },
+    { random: [0.5, 0, 0, 0, 0], sign: "=" },
+    { random: [0.9, 0, 0, 0, 0], sign: ">" }
+  ];
+
+  for (const example of examples) {
+    const values = [...example.random];
+    const task = generateComparisonTask(() => values.shift() ?? 0);
+    assert.equal(task.answer, example.sign);
+    assert.notEqual(task.meta.leftBase, task.meta.rightBase);
+    assert.equal(toDecimal(task.meta.left, task.meta.leftBase), task.meta.leftValue);
+    assert.equal(toDecimal(task.meta.right, task.meta.rightBase), task.meta.rightValue);
+    assert.equal(checkAnswer(task, example.sign).correct, true);
+  }
+});
+
+test("сравнение корректно обрабатывает значения на границах диапазона", () => {
+  const makeFrom = (values) => {
+    const sequence = [...values];
+    return generateComparisonTask(() => sequence.shift() ?? 0);
+  };
+  const smaller = makeFrom([0, 0.999999, 0, 0, 0]);
+  const equal = makeFrom([0.5, 0.999999, 0, 0, 0]);
+  const greater = makeFrom([0.999999, 0.999999, 0, 0, 0]);
+
+  assert.deepEqual([smaller.meta.leftValue, smaller.meta.rightValue, smaller.answer], [1023, 1024, "<"]);
+  assert.deepEqual([equal.meta.leftValue, equal.meta.rightValue, equal.answer], [1024, 1024, "="]);
+  assert.deepEqual([greater.meta.leftValue, greater.meta.rightValue, greater.answer], [1024, 1023, ">"]);
+});
+
+test("шаги учебного перевода делят до нуля и дают правильную запись", () => {
+  const task = generateGuidedConversionTask(() => 0.5);
+  let current = task.meta.number;
+  const remainders = [];
+
+  for (const division of task.meta.divisions) {
+    assert.equal(division.dividend, current);
+    assert.equal(division.quotient, Math.floor(current / task.meta.targetBase));
+    assert.equal(toDecimal(division.remainder, task.meta.targetBase), current % task.meta.targetBase);
+    assert.ok(toDecimal(division.remainder, task.meta.targetBase) < task.meta.targetBase);
+    remainders.push(division.remainder);
+    current = division.quotient;
+  }
+
+  assert.equal(current, 0);
+  assert.equal(remainders.reverse().join(""), task.answer);
+  assert.equal(toDecimal(task.answer, task.meta.targetBase), task.meta.number);
+  assert.equal(checkAnswer(task, task.answer).correct, true);
+});
+
 test("генератор сравнения выбирает знак по десятичным значениям", () => {
   const task = generateComparisonTask(() => 0.25);
   assert.notEqual(task.meta.leftBase, task.meta.rightBase);
   assert.ok([2, 8, 16].includes(task.meta.leftBase));
-  assert.equal(task.answer, task.meta.leftValue < task.meta.rightValue ? "<" : ">");
+  const expected = task.meta.leftValue < task.meta.rightValue ? "<" : task.meta.leftValue > task.meta.rightValue ? ">" : "=";
+  assert.equal(task.answer, expected);
 });
 
 test("пустой ответ не засчитывается", () => {

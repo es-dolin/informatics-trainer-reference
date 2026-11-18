@@ -80,18 +80,75 @@ export function generateConversionTask(rng = Math.random) {
   };
 }
 
-export function generateComparisonTask(rng = Math.random) {
-  const leftValue = randomInteger(rng, 0, 1024);
-  let rightValue = randomInteger(rng, 0, 1024);
-  if (rightValue === leftValue) rightValue = (rightValue + 1) % 1025;
+/** Создаёт десятичное число и шаги деления для учебного разбора. */
+export function generateGuidedConversionTask(rng = Math.random) {
+  const number = randomInteger(rng, 12, 255);
+  const targetBases = [2, 8, 16];
+  const targetBase = targetBases[randomInteger(rng, 0, targetBases.length - 1)];
+  const converted = fromDecimal(number, targetBase);
+  const divisions = [];
+  let current = number;
 
-  const leftBase = COMPARISON_BASES[randomInteger(rng, 0, COMPARISON_BASES.length - 1)];
-  let rightBase = COMPARISON_BASES[randomInteger(rng, 0, COMPARISON_BASES.length - 1)];
-  if (rightBase === leftBase) rightBase = COMPARISON_BASES[(COMPARISON_BASES.indexOf(rightBase) + 1) % COMPARISON_BASES.length];
+  // Запоминаем каждое деление, чтобы ученик мог решить его отдельно.
+  while (current > 0) {
+    const quotient = Math.floor(current / targetBase);
+    const remainder = current % targetBase;
+    divisions.push({
+      dividend: current,
+      quotient,
+      remainder: DIGITS[remainder]
+    });
+    current = quotient;
+  }
+
+  return {
+    kind: "systems-conversion",
+    input: { type: "text", label: "Запиши число в новом основании" },
+    prompt: `Разберём перевод числа ${number} из десятичной системы в основание ${targetBase}.`,
+    answer: converted.text,
+    hint: `Частное — целая часть от деления на ${targetBase}. Остаток найди так: число − частное × ${targetBase}. Остаток всегда меньше основания.`,
+    steps: [
+      ...converted.steps,
+      `Читаем остатки снизу вверх: ${converted.text}.`
+    ],
+    lessonExample: `Чтобы перевести ${number} в основание ${targetBase}, делим на ${targetBase} до частного 0, затем читаем остатки в обратном порядке.`,
+    meta: {
+      number,
+      source: String(number),
+      sourceBase: 10,
+      targetBase,
+      divisions
+    }
+  };
+}
+
+export function generateComparisonTask(rng = Math.random) {
+  // Сначала выбираем знак, иначе равные значения почти не встречаются.
+  const relation = randomInteger(rng, 0, 2);
+  let leftValue;
+  let rightValue;
+
+  if (relation === 0) {
+    leftValue = randomInteger(rng, 0, 1023);
+    rightValue = leftValue + randomInteger(rng, 1, 1024 - leftValue);
+  } else if (relation === 1) {
+    leftValue = randomInteger(rng, 0, 1024);
+    rightValue = leftValue;
+  } else {
+    rightValue = randomInteger(rng, 0, 1023);
+    leftValue = rightValue + randomInteger(rng, 1, 1024 - rightValue);
+  }
+
+  const leftBaseIndex = randomInteger(rng, 0, COMPARISON_BASES.length - 1);
+  const rightBaseOffset = randomInteger(rng, 1, COMPARISON_BASES.length - 1);
+  const leftBase = COMPARISON_BASES[leftBaseIndex];
+  const rightBase = COMPARISON_BASES[(leftBaseIndex + rightBaseOffset) % COMPARISON_BASES.length];
 
   const left = fromDecimal(leftValue, leftBase).text;
   const right = fromDecimal(rightValue, rightBase).text;
-  const answer = leftValue < rightValue ? "<" : ">";
+  let answer = "=";
+  if (leftValue < rightValue) answer = "<";
+  else if (leftValue > rightValue) answer = ">";
 
   return {
     kind: "systems-comparison",
