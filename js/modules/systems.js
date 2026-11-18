@@ -1,7 +1,8 @@
 // Задачи на системы счисления. Здесь нет DOM: функции удобно проверять отдельно.
 
 const DIGITS = "0123456789ABCDEF";
-const BASES = [2, 8, 16];
+const BASES = [2, 8, 10, 16];
+const COMPARISON_BASES = [2, 8, 16];
 
 function randomInteger(rng, minimum, maximum) {
   return Math.floor(rng() * (maximum - minimum + 1)) + minimum;
@@ -55,22 +56,27 @@ export function fromDecimal(number, base) {
 
 export function generateConversionTask(rng = Math.random) {
   const number = randomInteger(rng, 0, 1024);
-  const base = BASES[randomInteger(rng, 0, BASES.length - 1)];
-  const converted = fromDecimal(number, base);
+  const sourceBase = BASES[randomInteger(rng, 0, BASES.length - 1)];
+  const targetBases = BASES.filter((base) => base !== sourceBase);
+  const targetBase = targetBases[randomInteger(rng, 0, targetBases.length - 1)];
+  const source = fromDecimal(number, sourceBase).text;
+  const converted = fromDecimal(number, targetBase);
+  const sourceSteps = sourceBase === 10 ? [] : [`Сначала переводим исходную запись ${source} из основания ${sourceBase} в десятичную систему: ${number}.`];
 
   return {
     kind: "systems-conversion",
     input: { type: "text", label: "Запиши только цифры числа" },
-    prompt: `Переведи десятичное число ${number} в систему счисления с основанием ${base}.`,
+    prompt: `Переведи число ${source} из основания ${sourceBase} в систему счисления с основанием ${targetBase}.`,
     answer: converted.text,
-    hint: "Делить нужно на основание новой системы. Остатки потом читаются снизу вверх.",
+    hint: "Если число уже не в десятичной системе, сначала найди его десятичное значение. Затем дели на новое основание и читай остатки снизу вверх.",
     steps: [
-      `Делим ${number} на ${base} и записываем остатки.`,
+      ...sourceSteps,
+      `Делим ${number} на ${targetBase} и записываем остатки.`,
       ...converted.steps,
       `Читаем остатки снизу вверх: ${converted.text}.`
     ],
-    lessonExample: `Например, ${number}₁₀ = ${converted.text}${base === 16 ? "₁₆" : `_${base}`}.`,
-    meta: { number, base }
+    lessonExample: `Например, ${source} в основании ${sourceBase} имеет значение ${number} в десятичной системе. В основании ${targetBase} это ${converted.text}.`,
+    meta: { number, source, sourceBase, targetBase }
   };
 }
 
@@ -79,9 +85,9 @@ export function generateComparisonTask(rng = Math.random) {
   let rightValue = randomInteger(rng, 0, 1024);
   if (rightValue === leftValue) rightValue = (rightValue + 1) % 1025;
 
-  const leftBase = BASES[randomInteger(rng, 0, BASES.length - 1)];
-  let rightBase = BASES[randomInteger(rng, 0, BASES.length - 1)];
-  if (rightBase === leftBase) rightBase = BASES[(BASES.indexOf(rightBase) + 1) % BASES.length];
+  const leftBase = COMPARISON_BASES[randomInteger(rng, 0, COMPARISON_BASES.length - 1)];
+  let rightBase = COMPARISON_BASES[randomInteger(rng, 0, COMPARISON_BASES.length - 1)];
+  if (rightBase === leftBase) rightBase = COMPARISON_BASES[(COMPARISON_BASES.indexOf(rightBase) + 1) % COMPARISON_BASES.length];
 
   const left = fromDecimal(leftValue, leftBase).text;
   const right = fromDecimal(rightValue, rightBase).text;
@@ -114,7 +120,7 @@ export function checkAnswer(task, answer) {
   if (task.kind === "systems-conversion") {
     const clean = submitted.replace(/^0+(?=.)/, "");
     const expected = task.answer.replace(/^0+(?=.)/, "");
-    const validDigits = [...submitted].every((character) => DIGITS.indexOf(character) >= 0 && DIGITS.indexOf(character) < task.meta.base);
+    const validDigits = [...submitted].every((character) => DIGITS.indexOf(character) >= 0 && DIGITS.indexOf(character) < task.meta.targetBase);
     const correct = validDigits && clean === expected;
     return { correct, message: correct ? "Верно: все цифры записаны в нужном основании." : "Проверь основание и порядок остатков." };
   }
