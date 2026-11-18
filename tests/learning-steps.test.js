@@ -39,33 +39,46 @@ test("двоичное умножение учитывает нулевые ци
 
 test("двоичное деление переводит оба числа и собирает остатки", () => {
   const steps = createLearningSteps(arithmetic("1100", "11", "÷", 2, 4, "100"));
-  assert.deepEqual(answers(steps), [["12"], ["3"], ["4"], ["2", "0"], ["1", "0"], ["0", "1"], ["100"]]);
+  assert.deepEqual(answers(steps), [["8"], ["4"], ["0"], ["0"], ["12"], ["2"], ["1"], ["3"], ["4"], ["2", "0"], ["1", "0"], ["0", "1"], ["100"]]);
 });
 
 test("перевод нуля даёт непустой маршрут, сравнение равных чисел завершается знаком равенства", () => {
   const zero = createLearningSteps({ kind: "systems-conversion", answer: "0", meta: { source: "0", sourceBase: 10, targetBase: 2, number: 0 } });
   assert.deepEqual(answers(zero), [["0", "0"], ["0"]]);
   const comparison = createLearningSteps({ kind: "systems-comparison", answer: "=", meta: { left: "A", leftBase: 16, leftValue: 10, right: "1010", rightBase: 2, rightValue: 10 } });
-  assert.deepEqual(answers(comparison), [["10"], ["10"], ["="]]);
+  assert.deepEqual(answers(comparison), [["10"], ["10"], ["8"], ["0"], ["2"], ["0"], ["10"], ["="]]);
+  assert.match(comparison[0].hint, /A означает 10/);
 });
 
-test("логика разбирает вложенные операции для каждой строки независимо", () => {
+test("шестнадцатеричный остаток объясняется и проверяется как цифра нового основания", () => {
+  const task = { kind: "systems-conversion", answer: "1F", meta: { source: "31", sourceBase: 10, targetBase: 16, number: 31 } };
+  const steps = createLearningSteps(task);
+  assert.equal(checkLearningStep(steps[0], ["1", "F"]).correct, true);
+  assert.equal(checkLearningStep(steps[0], ["1", "15"]).correct, false);
+  assert.match(steps[0].explanation, /15₁₀ = F₁₆/);
+});
+
+test("логика подробно разбирает первую строку и проверяет остальные целиком", () => {
   const expression = and(or(not(variable("A")), variable("B")), variable("C"));
   const rows = buildTruthTable(expression, ["A", "B", "C"]);
   const steps = createLearningSteps({ kind: "logic-table-three", meta: { expression, rows } });
-  assert.equal(steps.length, 24);
-  for (let index = 0; index < rows.length; index += 1) {
-    const { A, B, C } = rows[index].values;
-    assert.deepEqual(answers(steps.slice(index * 3, index * 3 + 3)), [[String(1 - A)], [String(Number(!A || B))], [String(Number((!A || B) && C))]]);
+  assert.equal(steps.length, 10);
+  assert.deepEqual(answers(steps.slice(0, 3)), [["1"], ["1"], ["0"]]);
+  for (let index = 1; index < rows.length; index += 1) {
+    const current = steps[index + 2];
+    assert.equal(checkLearningStep(current, [rows[index].result]).correct, true);
+    assert.equal(checkLearningStep(current, [rows[index].result === "1" ? "0" : "1"]).correct, false);
+    assert.match(current.hint, /Начни с/);
   }
 });
 
 test("исполнитель идёт назад от цели и принимает другой правильный путь", () => {
   const task = { kind: "executor-number", answer: "12", meta: { start: 3, target: 4, commandLimit: 3 } };
   const steps = createLearningSteps(task);
-  assert.deepEqual(answers(steps), [["2"], ["3"], ["12"]]);
-  assert.equal(checkLearningStep(steps[2], ["211"]).correct, true);
-  assert.equal(checkLearningStep(steps[2], ["2222"]).correct, false);
+  assert.deepEqual(answers(steps), [["1 и 2"], ["2"], ["3"], ["12"]]);
+  assert.equal(checkLearningStep(steps[0], ["2"]).correct, false);
+  assert.equal(checkLearningStep(steps[3], ["211"]).correct, true);
+  assert.equal(checkLearningStep(steps[3], ["2222"]).correct, false);
 });
 
 test("Чертёжник проверяет обе координаты, отрицательные смещения и возврат к началу", () => {
@@ -80,17 +93,34 @@ test("Чертёжник проверяет обе координаты, отр�
   assert.equal(checkLearningStep(steps[0], ["-2", "-3"]).correct, false);
 });
 
-test("условие с ИЛИ показывает две проверки и вывод, включая равенство порогу", () => {
+test("условие с ИЛИ подробно разбирает первый запуск и собирает номера", () => {
   const runs = [
     { s: 5, t: 5, firstIsTrue: false, secondIsTrue: false, output: "NO" },
     { s: 4, t: 5, firstIsTrue: true, secondIsTrue: false, output: "YES" },
-    { s: 5, t: 6, firstIsTrue: false, secondIsTrue: true, output: "YES" }
+    { s: 5, t: 6, firstIsTrue: false, secondIsTrue: true, output: "YES" },
+    { s: 6, t: 5, firstIsTrue: false, secondIsTrue: false, output: "NO" }
   ];
   const steps = createLearningSteps({ kind: "program-condition", meta: { limit: 5, runs } });
-  assert.deepEqual(answers(steps), [["0"], ["0"], ["NO"], ["1"], ["0"], ["YES"], ["0"], ["1"], ["YES"]]);
+  assert.deepEqual(answers(steps), [["0"], ["0"], ["NO"], ["YES"], ["YES"], ["NO"], ["1, 4"]]);
   assert.equal(steps[2].codeLine, 2, "до ответа выделяем условие, не раскрывая ветку");
   assert.equal(steps[2].afterCodeLine, 5);
-  assert.equal(steps[5].afterCodeLine, 3);
+  assert.equal(steps[3].afterCodeLine, 3);
+  const finalStep = steps.at(-1);
+  assert.equal(finalStep.showHistory, true);
+  assert.equal(checkLearningStep(finalStep, ["4 1"]).correct, true);
+  assert.equal(checkLearningStep(finalStep, ["1, 4"]).correct, true);
+  assert.equal(checkLearningStep(finalStep, ["1, 1"]).correct, false);
+  assert.equal(checkLearningStep(finalStep, ["1 4 9"]).correct, false);
+  assert.equal(checkLearningStep(finalStep, ["1,,4"]).correct, false);
+  assert.equal(checkLearningStep(finalStep, []).empty, true);
+});
+
+test("если ни один запуск не печатает NO, в итоге можно ответить «нет»", () => {
+  const runs = [{ s: 4, t: 5, firstIsTrue: true, secondIsTrue: false, output: "YES" }];
+  const finalStep = createLearningSteps({ kind: "program-condition", meta: { limit: 5, runs } }).at(-1);
+  assert.equal(checkLearningStep(finalStep, ["нет"]).correct, true);
+  assert.equal(checkLearningStep(finalStep, ["НЕТ"]).correct, true);
+  assert.equal(checkLearningStep(finalStep, ["1"]).correct, false);
 });
 
 test("цикл сохраняет накопленную сумму между итерациями", () => {

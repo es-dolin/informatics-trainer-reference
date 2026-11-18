@@ -24,7 +24,7 @@ function addColumnSteps(left, right, base) {
     const column = digitValue(a[index]) + digitValue(b[index]) + incomingCarry;
     const digit = column % base;
     const nextCarry = Math.floor(column / base);
-    notes.push(`Разряд ${width - index}: ${a[index]} + ${b[index]}${incomingCarry ? ` + перенос ${incomingCarry}` : ""} = ${column}; записываем ${DIGITS[digit]}${nextCarry ? `, переносим ${nextCarry}` : ""}.`);
+    notes.push(`Разряд ${width - index} справа: значения цифр ${digitValue(a[index])}₁₀ + ${digitValue(b[index])}₁₀${incomingCarry ? ` + перенос ${incomingCarry}` : ""} = ${column}₁₀. В основании ${base} это ${fromDecimal(column, base).text}; записываем ${DIGITS[digit]}${nextCarry ? `, переносим ${nextCarry}` : ""}.`);
     carry = nextCarry;
   }
   if (carry) notes.push(`Остался перенос ${carry}, записываем его слева.`);
@@ -45,7 +45,7 @@ function subtractColumnSteps(left, right, base) {
     const didBorrow = top < bottom;
     const resultDigit = didBorrow ? top + base - bottom : top - bottom;
     borrow = didBorrow ? 1 : 0;
-    notes.push(`Разряд ${width - index}: ${digitValue(a[index])} − займ ${incomingBorrow} − ${digitValue(b[index])}${didBorrow ? ` + основание ${base}` : ""} = ${resultDigit}; записываем ${DIGITS[resultDigit]}${didBorrow ? ", занимаем 1 разряд слева" : ""}.`);
+    notes.push(`Разряд ${width - index} справа: значения цифр ${digitValue(a[index])}₁₀ − займ ${incomingBorrow} − ${digitValue(b[index])}₁₀${didBorrow ? ` + ${base}₁₀` : ""} = ${resultDigit}₁₀; записываем ${DIGITS[resultDigit]}${didBorrow ? ", занимаем единицу старшего разряда" : ""}.`);
   }
   return notes;
 }
@@ -74,7 +74,7 @@ function generateOtherBaseTask(rng, options = {}) {
     input: { type: "text", label: "Запиши результат в той же системе" },
     prompt: `Вычисли: ${left} ${operation} ${right} (основание ${base}).`,
     answer,
-    hint: operation === "+" ? "Сложи цифры справа налево. Если сумма не помещается в один разряд, перенеси единицу влево." : "Вычитай справа налево. Если верхняя цифра меньше нижней, займи один разряд слева.",
+    hint: operation === "+" ? "Сложи цифры справа налево. Если сумма достигает основания, запиши остаток и перенеси единицу влево." : "Вычитай справа налево. Если верхней цифры не хватает, займи единицу старшего разряда: она добавит к текущему основание системы.",
     steps: [
       ...columnSteps,
       `Проверка: ${leftValue} ${operation === "−" ? "−" : "+"} ${rightValue} = ${result} в десятичной системе.`,
@@ -119,9 +119,9 @@ function generateBinaryTask(rng, options = {}) {
     steps = subtractColumnSteps(left, right, 2);
   } else if (operation === "×") {
     const partials = [...right].reverse().map((bit, position) => bit === "1" ? `${left} со сдвигом на ${position}: ${fromDecimal(leftValue * 2 ** position, 2).text}` : null).filter(Boolean);
-    steps = [`Умножаем двоичные числа как обычные столбиком.`, ...partials.map((item) => `Частичное произведение: ${item}.`), `Складываем частичные произведения: ${result} в десятичной системе.`];
+    steps = [`Умножаем двоичные числа столбиком.`, ...partials.map((item) => `Частичное произведение: ${item}.`), `Складываем частичные произведения: ${answer}₂ = ${result}₁₀.`];
   } else {
-    steps = [`Переводим делимое: ${left}₂ = ${leftValue}; делитель: ${right}₂ = ${rightValue}.`, `${leftValue} ÷ ${rightValue} = ${result}; деление подобрано без остатка.`, `Переводим ${result} в двоичную систему: ${answer}.`];
+    steps = [`Переводим делимое: ${left}₂ = ${leftValue}₁₀; делитель: ${right}₂ = ${rightValue}₁₀.`, `${leftValue}₁₀ ÷ ${rightValue}₁₀ = ${result}₁₀; деление без остатка.`, `Переводим ${result}₁₀ в двоичную систему: ${answer}₂.`];
   }
 
   return {
@@ -129,7 +129,7 @@ function generateBinaryTask(rng, options = {}) {
     input: { type: "text", label: "Запиши ответ двоичными цифрами" },
     prompt: `Вычисли в двоичной системе: ${left} ${operation} ${right}.`,
     answer,
-    hint: operation === "÷" ? "Переведи числа в десятичную систему, выполни деление, затем переведи ответ обратно." : "Решай справа налево и следи за переносами или заимствованиями.",
+    hint: operation === "÷" ? "Переведи числа в десятичную систему, выполни деление, затем переведи ответ обратно." : operation === "×" ? "Найди частичные произведения для каждой цифры множителя, сдвинь их и сложи." : "Решай справа налево и следи за переносами или займами.",
     steps: [...steps, `Ответ: ${answer}₂.`],
     lessonExample: "Для умножения каждый разряд множителя даёт частичное произведение. При делении сначала проверяем, как делятся значения чисел.",
     meta: { base: 2, left, right, leftValue, rightValue, operation, result }
@@ -164,10 +164,12 @@ export function checkAnswer(task, answer) {
 
 export const lesson = {
   title: "Считаем в разных основаниях",
-  description: "Арифметические правила знакомы: складывать, вычитать, умножать и делить можно в любой позиционной системе. Меняется размер основания, а вместе с ним - переносы и заимствования.",
+  description: "Считать столбиком можно в любой системе счисления. Основание определяет доступные цифры и то, когда возникает перенос или займ.",
   points: [
-    "При сложении переносим разряд, когда сумма достигает основания системы.",
-    "При вычитании, если цифры не хватает, занимаем один разряд слева - это добавляет к цифре величину основания.",
-    "В двоичном умножении складываем частичные произведения. В тренировочных примерах деление подобрано так, чтобы ответ был целым числом."
+    "При сложении, если сумма достигает основания, запиши остаток и перенеси единицу в следующий разряд: 7₈ + 1₈ = 10₈; F₁₆ + 1₁₆ = 10₁₆.",
+    "A, B, C, D, E, F в шестнадцатеричной записи обозначают десятичные значения 10, 11, 12, 13, 14, 15.",
+    "При вычитании займём единицу старшего разряда: она добавляет к текущему основание системы. Если слева ноль, займ проходит дальше через него.",
+    "Например, 1000₂ − 1₂ = 111₂: займ от единицы проходит через два нуля, прежде чем попасть в крайний правый разряд.",
+    "При двоичном умножении сдвигай и складывай частичные произведения. Деление здесь разбираем через десятичную систему; во всех примерах частное целое."
   ]
 };

@@ -17,6 +17,15 @@ function makeNumberExecutorTask(rng, reference = null) {
     target = command === 1 ? target - 1 : target * 2;
   }
 
+  // Если путь вернулся в начало, заменяем последнюю команду. Иначе задача
+  // допускала бы пустой алгоритм, который поле ответа не умеет принимать.
+  if (target === start) {
+    const beforeLast = commands.slice(0, -1).reduce((value, command) => command === 1 ? value - 1 : value * 2, start);
+    const lastIndex = commands.length - 1;
+    commands[lastIndex] = commands[lastIndex] === 1 ? 2 : 1;
+    target = commands[lastIndex] === 1 ? beforeLast - 1 : beforeLast * 2;
+  }
+
   const trace = [start];
   let current = start;
   for (const command of commands) {
@@ -123,6 +132,24 @@ export function simulateNumberCommands(start, commandText) {
   return { valid: true, values, result: current };
 }
 
+/** Находит команды, которыми может заканчиваться путь к цели. */
+export function findPossibleLastCommands(start, target, commandLimit) {
+  let paths = [{ value: start, last: "" }];
+  const result = new Set();
+  for (let count = 1; count <= commandLimit; count += 1) {
+    const nextPaths = [];
+    for (const path of paths) {
+      if (path.value > 0) nextPaths.push({ value: path.value - 1, last: "1" });
+      nextPaths.push({ value: path.value * 2, last: "2" });
+    }
+    for (const path of nextPaths) {
+      if (path.value === target) result.add(path.last);
+    }
+    paths = nextPaths;
+  }
+  return [...result].sort();
+}
+
 function normalizePoint(text) {
   const match = String(text ?? "").trim().match(/^(-?\d+)\s*[,;]\s*(-?\d+)$/);
   return match ? `${Number(match[1])},${Number(match[2])}` : "";
@@ -148,8 +175,9 @@ export const lesson = {
   title: "Команды превращают алгоритм в движение",
   description: "Исполнитель - это объект с понятным набором команд. Чтобы узнать результат, выполняй команды по порядку и фиксируй новое состояние после каждого шага.",
   points: [
-    "У числового исполнителя команда меняет число на экране.",
-    "У Чертёжника смещение (a, b) прибавляет a к x и b к y.",
-    "Повторение означает, что каждая команда из блока выполняется несколько раз."
+    "У числового исполнителя выполняй команды по порядку: запиши число после каждой команды.",
+    "У Чертёжника смещение (a, b) прибавляет a к x и b к y. Например, из (2, 3) после смещения (1, -2) получим (3, 1).",
+    "При повторении все команды блока выполняются по порядку, затем блок повторяется. Например, блок A, B дважды даёт A, B, A, B.",
+    "Если идёшь от цели назад, отменяй команды: вместо вычитания 1 прибавляй 1, вместо умножения на 2 дели на 2."
   ]
 };

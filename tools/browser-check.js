@@ -62,7 +62,23 @@ async function checkLayout(label) {
 }
 
 async function changeVariant(value) {
-  await evaluate(`(() => { const select = document.getElementById('task-variant'); select.value = ${JSON.stringify(value)}; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  await evaluate(`(() => {
+    const value = ${JSON.stringify(value)};
+    const change = (id, next) => { const select = document.getElementById(id); select.value = next; select.dispatchEvent(new Event('change', { bubbles: true })); };
+    if (!value.startsWith('convert-')) { change('task-variant', value); return; }
+    const [, source, target] = value.split('-');
+    if (!document.getElementById('source-base')) change('task-variant', 'convert');
+    let currentSource = document.getElementById('source-base').value;
+    let currentTarget = document.getElementById('target-base').value;
+    if (currentTarget === source && currentSource !== source) {
+      const temporary = ['2', '8', '10', '16'].find(base => base !== currentSource && base !== source);
+      change('target-base', temporary);
+    }
+    currentSource = document.getElementById('source-base').value;
+    if (currentSource !== source) change('source-base', source);
+    currentTarget = document.getElementById('target-base').value;
+    if (currentTarget !== target) change('target-base', target);
+  })()`);
 }
 async function shownTask() {
   const task = await evaluate("globalThis.__infoLabGenerated.findLast(task => task.prompt === document.getElementById('task-title').textContent)");
@@ -122,7 +138,7 @@ try {
   });
   await command("Page.enable");
   await command("Runtime.enable");
-  await command("Page.addScriptToEvaluateOnNewDocument", { source: `Math.random = () => 0.5; localStorage.setItem(${JSON.stringify(progressKey)}, JSON.stringify({ version: 1, modules: { systems: { attempts: 2, correct: 1 } } }));` });
+  await command("Page.addScriptToEvaluateOnNewDocument", { source: `Math.random = () => 0.5; globalThis.confirm = () => true; localStorage.setItem(${JSON.stringify(progressKey)}, JSON.stringify({ version: 1, modules: { systems: { attempts: 2, correct: 1 } } }));` });
   await command("Page.navigate", { url: process.env.INFO_LAB_URL ?? "http://localhost:4173/" });
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await evaluate("Boolean(document.querySelector('[data-module]'))")) break;
@@ -151,6 +167,29 @@ try {
     await checkLayout(`Главная ${width}`);
     await screenshot(`home-${width}`);
   }
+  // Отмена смены задания сохраняет черновик; открытая теория не закрывается после проверки.
+  await click('[data-module="systems"]');
+  const originalTask = await shownTask();
+  await evaluate("document.querySelector('.topic-theory').open = true; document.querySelector('[name=learning-0]').value = '123'; globalThis.confirm = () => false");
+  await evaluate(`(() => { const select = document.getElementById('source-base'); const option = [...select.options].find(item => !item.disabled && item.value !== select.value); select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  assert.deepEqual(await shownTask(), originalTask, "отмена смены сохраняет задачу");
+  assert.equal(await evaluate("document.querySelector('[name=learning-0]').value"), "123", "отмена смены сохраняет ответ");
+  assert.equal(await evaluate("document.querySelector('.topic-theory').open"), true, "теория остаётся открытой");
+  await fillAndSubmit("learning-step-form", [""]);
+  assert.equal(await evaluate("document.querySelector('.topic-theory').open"), true, "теория остаётся открытой после проверки");
+  await evaluate("document.querySelector('[name=learning-0]').value = '123'");
+  await click('[data-mode="test"]');
+  const selfTaskBeforeCancel = await shownTask();
+  await evaluate(`(() => { const select = document.getElementById('source-base'); const option = [...select.options].find(item => !item.disabled && item.value !== select.value); select.value = option.value; select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  assert.deepEqual(await shownTask(), selfTaskBeforeCancel, "смена вида учитывает черновик другого режима");
+  await click('[data-mode="study"]');
+  assert.equal(await evaluate("document.querySelector('[name=learning-0]').value"), "123", "черновик изучения сохранён после отмены");
+  await click('[data-action="progress"]');
+  const beforeCancelClear = JSON.stringify(await storedProgress());
+  await click('[data-action="clear-progress"]');
+  assert.equal(JSON.stringify(await storedProgress()), beforeCancelClear, "отмена очистки сохраняет результаты");
+  await evaluate("globalThis.confirm = () => true");
+  await click('[data-action="home"]');
   for (const module of modules) {
     await click(`[data-module="${module.id}"]`);
     assert.equal(await evaluate("document.querySelectorAll('.mode-tab').length"), 2);
@@ -216,13 +255,20 @@ try {
       await changeVariant(variant.id);
       const task = await shownTask();
       assert.equal(getTaskVariant(task), variant.id);
-      for (const width of [390, 1440]) {
+      for (const width of [320, 390, 1440]) {
         await command("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
         await checkLayout(`${module.id} ${variant.id} ${width}`);
       }
       const steps = createLearningSteps(task);
+      if (task.kind.startsWith("logic-table")) {
+        assert.equal(await evaluate("document.querySelector('.guided-truth-table tbody tr td:last-child').textContent"), "?", "таблица не раскрывает ответ до проверки");
+      }
       for (let index = 0; index < steps.length; index += 1) {
         await fillAndSubmit("learning-step-form", steps[index].fields.map((field) => field.answer));
+        if (task.kind.startsWith("logic-table") && steps[index].group.startsWith("Строка 1:") && !steps[index + 1]?.group.startsWith("Строка 1:")) {
+          assert.equal(await evaluate("document.querySelector('.guided-truth-table tbody tr td:last-child').textContent"), task.meta.rows[0].result, "проверенная строка видна в таблице");
+          assert.equal(await evaluate("document.querySelector('.guided-truth-table tbody tr:nth-child(2) td:last-child').textContent"), "?", "следующая строка остаётся закрытой");
+        }
         if (task.kind === "executor-drawing") {
           const points = await evaluate("document.querySelector('.task-panel polyline').getAttribute('points').split(' ').length");
           assert.equal(points, index + 2, "путь растёт только после правильного шага");
@@ -235,6 +281,16 @@ try {
     await click('[data-action="home"]');
   }
   assert.equal(JSON.stringify(await storedProgress()), beforeVariants);
+  // Для 3 → 4 подходят и 211, и 12. Показываем именно введённый путь.
+  await click('[data-module="executors"]');
+  await evaluate("globalThis.Math.random = (() => { const values = [0, 0, 0.99, 0, 0]; return () => values.shift() ?? 0; })()");
+  await changeVariant("number");
+  const alternativeTask = await shownTask();
+  assert.equal(alternativeTask.answer, "211");
+  const alternativeSteps = createLearningSteps(alternativeTask);
+  for (const step of alternativeSteps.slice(0, -1)) await fillAndSubmit("learning-step-form", step.fields.map((field) => field.answer));
+  await fillAndSubmit("learning-step-form", ["12"]);
+  assert.match(await evaluate("document.querySelector('.learning-complete').textContent"), /Ответ: 12\./);
   assert.deepEqual(pageErrors, [], "в браузере не должно быть ошибок JavaScript");
   console.log(`Все ${variantCount} видов заданий пройдены по шагам. Ширины ${sizes.join(', ')} px.`);
   console.log(`Скриншоты: ${output}`);

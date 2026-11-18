@@ -48,11 +48,17 @@ export function fromDecimal(number, base) {
     const quotient = Math.floor(current / base);
     const remainder = current % base;
     remainders.push(DIGITS[remainder]);
-    steps.push(`${current} ÷ ${base} = ${quotient}, остаток ${DIGITS[remainder]}.`);
+    const shownRemainder = remainder >= 10 ? `${remainder}₁₀ = ${DIGITS[remainder]}₁₆` : String(remainder);
+    steps.push(`${current} ÷ ${base}: частное ${quotient}, остаток ${shownRemainder}.`);
     current = quotient;
   }
 
   return { text: remainders.reverse().join(""), steps };
+}
+
+function explainDecimalConversion(text, base, value) {
+  const terms = [...text].map((digit, index) => `${DIGITS.indexOf(digit)} × ${base}^${text.length - index - 1}`);
+  return `${text} (основание ${base}) = ${terms.join(" + ")} = ${value} (основание 10).`;
 }
 
 export function generateConversionTask(rng = Math.random, options = {}) {
@@ -65,19 +71,21 @@ export function generateConversionTask(rng = Math.random, options = {}) {
   const targetBase = options.targetBase ?? targetBases[randomInteger(rng, 0, targetBases.length - 1)];
   const source = fromDecimal(number, sourceBase).text;
   const converted = fromDecimal(number, targetBase);
-  const sourceSteps = sourceBase === 10 ? [] : [`Сначала переводим исходную запись ${source} из основания ${sourceBase} в десятичную систему: ${number}.`];
+  const sourceSteps = sourceBase === 10 ? [] : [explainDecimalConversion(source, sourceBase, number)];
 
   return {
     kind: "systems-conversion",
     input: { type: "text", label: "Запиши только цифры числа" },
     prompt: `Переведи число ${source} из основания ${sourceBase} в систему счисления с основанием ${targetBase}.`,
     answer: converted.text,
-    hint: "Если число уже не в десятичной системе, сначала найди его десятичное значение. Затем дели на новое основание и читай остатки снизу вверх.",
+    hint: targetBase === 10 ? "Найди вклад каждого разряда и сложи их." : "Если число записано не в десятичной системе, сначала найди его десятичное значение. Затем дели на новое основание и читай остатки снизу вверх.",
     steps: [
       ...sourceSteps,
-      `Делим ${number} на ${targetBase} и записываем остатки.`,
-      ...converted.steps,
-      `Читаем остатки снизу вверх: ${converted.text}.`
+      ...(targetBase === 10 ? [`Ответ в десятичной системе: ${converted.text}.`] : [
+        `Делим ${number} на ${targetBase} и записываем остатки.`,
+        ...converted.steps,
+        `Читаем остатки снизу вверх: ${converted.text}.`
+      ])
     ],
     lessonExample: `Например, ${source} в основании ${sourceBase} имеет значение ${number} в десятичной системе. В основании ${targetBase} это ${converted.text}.`,
     meta: { number, source, sourceBase, targetBase }
@@ -165,8 +173,8 @@ export function generateComparisonTask(rng = Math.random, reference = null) {
     answer,
     hint: "Переведи оба числа в одну систему счисления. Удобнее всего - в десятичную.",
     steps: [
-      `${left} в основании ${leftBase} = ${leftValue} в десятичной системе.`,
-      `${right} в основании ${rightBase} = ${rightValue} в десятичной системе.`,
+      explainDecimalConversion(left, leftBase, leftValue),
+      explainDecimalConversion(right, rightBase, rightValue),
       `Сравниваем ${leftValue} и ${rightValue}: знак ${answer}.`
     ],
     lessonExample: "Чтобы сравнить числа с разными основаниями, сначала переведи оба числа в общее основание.",
@@ -203,10 +211,12 @@ export function checkAnswer(task, answer) {
 
 export const lesson = {
   title: "Как читать и переводить числа",
-  description: "Основание показывает, сколько разных цифр используется в записи. В двоичной системе это 0 и 1, в восьмеричной - цифры от 0 до 7, в шестнадцатеричной - цифры 0–9 и буквы A–F.",
+  description: "Основание показывает, сколько цифр доступно для записи. В двоичной системе это 0 и 1, в восьмеричной - 0–7, в десятичной - 0–9, в шестнадцатеричной - 0–9 и A–F.",
   points: [
-    "Для перевода в десятичную систему разложи число на разряды и умножь цифру на основание в степени номера разряда.",
-    "Для перевода из десятичной системы дели число на новое основание и собирай остатки снизу вверх.",
+    "Буквы в шестнадцатеричной системе обозначают значения: A = 10, B = 11, C = 12, D = 13, E = 14, F = 15 в десятичной системе.",
+    "Чтобы перевести число в десятичную систему, умножь каждую цифру на основание в степени её разряда и сложи результаты. Степени считаются справа с нуля.",
+    "Например, 1011₂ = 1 × 2³ + 0 × 2² + 1 × 2¹ + 1 × 2⁰ = 11₁₀.",
+    "Для перевода из десятичной системы дели число на новое основание до частного 0, затем читай остатки снизу вверх. Например, остаток 15 записывается как F в шестнадцатеричной системе.",
     "Чтобы сравнить записи с разными основаниями, переведи их в одно основание и сравни полученные значения."
   ]
 };

@@ -19,6 +19,7 @@ const state = {
   feedback: null,
   notice: "",
   heroStep: 0,
+  systemBases: { source: 10, target: 2 },
   currentAnswer: null,
   attemptRecorded: false,
   studyTask: null,
@@ -45,7 +46,7 @@ function accuracy(attempts, correct) {
 
 const heroSteps = [
   { label: "Число", value: "1011₂", note: "Запись в двоичной системе" },
-  { label: "Разряды", value: "1×8 + 0×4 + 1×2 + 1×1", note: "Каждая позиция - степень основания 2" },
+  { label: "Разряды", value: "1×8 + 0×4 + 1×2 + 1×1", note: "Вес каждого разряда - степень двойки" },
   { label: "Результат", value: "11₁₀", note: "То же значение в десятичной системе" }
 ];
 
@@ -62,7 +63,7 @@ function renderTopicVisual(module) {
   if (module.id === "executors") {
     return `<div class="card-visual visual-executors"><svg viewBox="0 0 180 58" aria-hidden="true"><path class="grid-lines" d="M0 15h180M0 29h180M0 43h180M30 0v58M60 0v58M90 0v58M120 0v58M150 0v58"/><path class="route-line" d="M31 43h29V29h30V15h30V29h30"/><circle cx="31" cy="43" r="4"/><circle cx="150" cy="29" r="4"/></svg><span>КОМАНДА → ПУТЬ</span></div>`;
   }
-  return `<div class="card-visual visual-program"><code><span>if</span> условие:<br><b>вывод</b> результат</code><i>→ YES / NO</i></div>`;
+  return `<div class="card-visual visual-program"><code><span>if</span> x &gt; 0:<br>&nbsp;&nbsp;<b>print</b>(x)</code></div>`;
 }
 
 function renderHeader() {
@@ -84,10 +85,10 @@ function renderHome() {
     const progress = state.progress.modules[item.id];
     return `
       <button class="module-card ${item.color}" type="button" data-module="${item.id}">
-        <span class="card-topline"><span class="module-icon" aria-hidden="true">${escapeHtml(item.icon)}</span><span class="module-number">ТЕМА ${item.number}</span></span>
+        <span class="card-topline"><span class="module-icon" aria-hidden="true">${escapeHtml(item.icon)}</span></span>
         ${renderTopicVisual(item)}
         <span class="card-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.description)}</span></span>
-        <span class="card-bottom"><span>${escapeHtml(item.skills)}</span><span class="card-progress">${progress.attempts ? `${progress.correct}/${progress.attempts} верно` : "Открыть тему"}<b aria-hidden="true">↗</b></span></span>
+        ${progress.attempts ? `<span class="card-progress">${progress.correct} из ${progress.attempts} верно</span>` : ""}
       </button>`;
   }).join("");
   const activeHeroStep = heroSteps[state.heroStep];
@@ -97,16 +98,13 @@ function renderHome() {
       <section class="hero-grid" aria-labelledby="home-title">
         <div class="hero-copy">
           <h1 id="home-title">Информатика<br><span>на практике</span></h1>
-          <p class="hero-description">Информатика через интерактивные задания и разбор решений. Пять тем для практики в 8–9 классе.</p>
-          <div class="hero-footnote"><span class="mini-check">✓</span> Задания с проверкой · подсказки · разбор решений</div>
+          <p class="hero-description">Решай задачи по информатике и разбирай решения по шагам.</p>
         </div>
         <div class="hero-lab" aria-label="Интерактивный пример перевода числа">
-          <div class="lab-head"><div><span class="live-dot"></span><span>ИНТЕРАКТИВНЫЙ ПРИМЕР</span></div><span>ШАГ 0${state.heroStep + 1} / 03</span></div>
           <div class="lab-flow" role="group" aria-label="Шаги перевода числа">
-            ${heroSteps.map((step, index) => `<button class="lab-step ${index === state.heroStep ? "is-active" : ""} ${index < state.heroStep ? "is-done" : ""}" type="button" data-action="hero-step" data-step="${index}" aria-pressed="${index === state.heroStep}"><span>0${index + 1}</span><strong>${escapeHtml(step.label)}</strong><small>${index === state.heroStep ? escapeHtml(step.value) : index < state.heroStep ? "✓ Готово" : "Ожидает"}</small></button>${index < heroSteps.length - 1 ? `<span class="flow-connector ${index < state.heroStep ? "is-done" : ""}" aria-hidden="true">→</span>` : ""}`).join("")}
+            ${heroSteps.map((step, index) => `<button class="lab-step ${index === state.heroStep ? "is-active" : ""}" type="button" data-action="hero-step" data-step="${index}" aria-pressed="${index === state.heroStep}"><strong>${escapeHtml(step.label)}</strong></button>${index < heroSteps.length - 1 ? `<span class="flow-connector" aria-hidden="true">→</span>` : ""}`).join("")}
           </div>
-          <div class="lab-explanation"><div><span class="lab-kicker">${escapeHtml(activeHeroStep.label)}</span><strong>${escapeHtml(activeHeroStep.value)}</strong><p>${escapeHtml(activeHeroStep.note)}</p></div><button class="lab-next" type="button" data-action="hero-next" aria-label="Следующий шаг">${state.heroStep === heroSteps.length - 1 ? "↺" : "→"}</button></div>
-          <div class="lab-footer"><span><i></i><i></i><i></i></span><span>Числовые системы · пример</span><span>1011₂ = 11₁₀</span></div>
+          <div class="lab-explanation"><div><strong>${escapeHtml(activeHeroStep.value)}</strong><p>${escapeHtml(activeHeroStep.note)}</p></div><button class="lab-next" type="button" data-action="hero-next" aria-label="${state.heroStep === heroSteps.length - 1 ? "Вернуться к началу примера" : "Следующий шаг"}">${state.heroStep === heroSteps.length - 1 ? "↺" : "→"}</button></div>
         </div>
       </section>
 
@@ -123,19 +121,19 @@ function renderProgress() {
   const rows = modules.map((item) => {
     const progress = state.progress.modules[item.id];
     const percent = progress.attempts ? Math.round(progress.correct / progress.attempts * 100) : 0;
-    return `<article class="progress-row ${item.color}"><div class="progress-row-icon" aria-hidden="true">${escapeHtml(item.icon)}</div><div class="progress-row-copy"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.skills)}</span></div><div class="progress-meter" role="progressbar" aria-label="Верные ответы: ${escapeHtml(item.title)}" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100"><span style="width:${percent}%"></span></div><div class="progress-numbers"><strong>${progress.correct}/${progress.attempts}</strong><span>верно</span></div></article>`;
+    return `<article class="progress-row ${item.color}"><div class="progress-row-icon" aria-hidden="true">${escapeHtml(item.icon)}</div><div class="progress-row-copy"><strong>${escapeHtml(item.title)}</strong></div><div class="progress-meter" role="progressbar" aria-label="Верные ответы: ${escapeHtml(item.title)}" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100"><span style="width:${percent}%"></span></div><div class="progress-numbers"><strong>${progress.attempts ? `${progress.correct}/${progress.attempts}` : "-"}</strong><span>${progress.attempts ? "верно" : "нет ответов"}</span></div></article>`;
   }).join("");
 
   return `
     <main class="page-content progress-page">
-      <div class="page-title-row"><div><p class="eyebrow">твоя практика</p><h1>Мой прогресс</h1><p class="page-subtitle">Твои результаты по всем пяти темам.</p></div><button class="quiet-button" type="button" data-action="home">← К темам</button></div>
+      <div class="page-title-row"><div><h1>Результаты</h1><p class="page-subtitle">Учитывается первый ответ в самопроверке.</p></div><button class="quiet-button" type="button" data-action="home">← К темам</button></div>
       <section class="summary-grid" aria-label="Общая статистика">
-        <div class="summary-card summary-main"><span>Всего ответов</span><strong>${total}</strong><small>в пяти тематических модулях</small></div>
+        <div class="summary-card summary-main"><span>Всего ответов</span><strong>${total}</strong></div>
         <div class="summary-card"><span>Верных ответов</span><strong>${correct}</strong><small>из ${total} попыток</small></div>
-        <div class="summary-card"><span>Точность</span><strong>${accuracy(total, correct)}</strong><small>по всем темам</small></div>
+        <div class="summary-card"><span>Точность</span><strong>${accuracy(total, correct)}</strong></div>
       </section>
-      <section class="progress-list" aria-labelledby="progress-list-title"><div class="section-heading compact"><div><p class="eyebrow">по темам</p><h2 id="progress-list-title">Шаг за шагом</h2></div></div>${rows}</section>
-      <div class="progress-actions"><p>Хочешь начать заново? Счётчики можно очистить в любой момент.</p><button class="text-button danger-text" type="button" data-action="clear-progress">Очистить прогресс</button></div>
+      <section class="progress-list" aria-labelledby="progress-list-title"><div class="section-heading compact"><h2 id="progress-list-title">По темам</h2></div>${rows}</section>
+      <div class="progress-actions"><button class="text-button danger-text" type="button" data-action="clear-progress">Очистить результаты</button></div>
       ${state.notice ? `<p class="inline-notice" role="status">${escapeHtml(state.notice)}</p>` : ""}
     </main>`;
 }
@@ -145,6 +143,7 @@ function renderLesson(module) {
   const guide = state.studyGuide;
   const current = guide.steps[guide.index];
   const points = module.lesson.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("");
+  const logicTable = module.id === "logic" ? `<div class="truth-table-wrap"><table class="truth-table"><caption>Правила логических операций</caption><thead><tr><th scope="col">A</th><th scope="col">B</th><th scope="col">НЕ A</th><th scope="col">A И B</th><th scope="col">A ИЛИ B</th></tr></thead><tbody><tr><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td></tr><tr><td>1</td><td>0</td><td>0</td><td>0</td><td>1</td></tr><tr><td>1</td><td>1</td><td>0</td><td>1</td><td>1</td></tr></tbody></table></div>` : "";
   const explanation = current
     ? `<p class="step-instruction">${escapeHtml(current.prompt)}</p><div class="step-rule"><strong>Как выполнить</strong><p>${escapeHtml(current.hint)}</p></div>`
     : `<p class="step-instruction">Все действия выполнены. Повтори решение на другом примере или проверь себя без помощи.</p>`;
@@ -152,31 +151,24 @@ function renderLesson(module) {
   return `<aside class="lesson-panel step-instructions" aria-labelledby="lesson-title">
     <div class="lesson-heading"><span class="lesson-number">${current ? `СЕЙЧАС: ШАГ ${guide.index + 1}` : "РЕШЕНИЕ СОБРАНО"}</span><h2 id="lesson-title">${escapeHtml(current?.title ?? "Что дальше?")}</h2></div>
     ${explanation}${renderLearningPlan(guide)}
-    <details class="topic-theory"><summary>Теория темы</summary><p class="lesson-intro">${escapeHtml(module.lesson.description)}</p><ul class="lesson-points">${points}</ul></details>
+    <details class="topic-theory"><summary>Теория темы</summary><p class="lesson-intro">${escapeHtml(module.lesson.description)}</p><ul class="lesson-points">${points}</ul>${logicTable}</details>
     ${solution}
   </aside>`;
 }
 
-function renderModeNotice() {
-  const text = state.mode === "study"
-    ? "Выполняй шаги и проверяй промежуточные ответы."
-    : "Реши похожую задачу самостоятельно. После ответа можно разобрать её по шагам.";
-  return `<p class="mode-note"><span class="mode-status-dot" aria-hidden="true"></span>${text}</p>`;
-}
-
 function renderTaskVisual(task) {
   if (task.kind === "systems-conversion") {
-    return `<div class="task-visual base-visual"><span><small>ИСХОДНОЕ</small><code>${escapeHtml(task.meta.source)}<sub>${task.meta.sourceBase}</sub></code></span><b aria-hidden="true">→</b><span><small>НОВОЕ ОСНОВАНИЕ</small><code>?</code></span><span class="visual-target">основание ${task.meta.targetBase}</span></div>`;
+    return `<div class="task-visual base-visual"><span><small>ИСХОДНОЕ ЧИСЛО</small><code>${escapeHtml(task.meta.source)}<sub>${task.meta.sourceBase}</sub></code></span><b aria-hidden="true">→</b><span><small>ОТВЕТ</small><code>?<sub>${task.meta.targetBase}</sub></code></span></div>`;
   }
   if (task.kind === "systems-comparison") {
     return `<div class="task-visual compare-visual"><code>${escapeHtml(task.meta.left)}<sub>${task.meta.leftBase}</sub></code><span>?</span><code>${escapeHtml(task.meta.right)}<sub>${task.meta.rightBase}</sub></code><small>СРАВНИ ПО ЗНАЧЕНИЮ</small></div>`;
   }
   if (task.kind.startsWith("arithmetic-")) {
-    return `<div class="task-visual arithmetic-visual"><code>${escapeHtml(task.meta.left)}<sub>${task.meta.base}</sub></code><b>${escapeHtml(task.meta.operation)}</b><code>${escapeHtml(task.meta.right)}<sub>${task.meta.base}</sub></code><span class="visual-equals">=</span><i>?</i><small>ВЫЧИСЛИ ПО РАЗРЯДАМ</small></div>`;
+    return `<div class="task-visual arithmetic-visual"><code>${escapeHtml(task.meta.left)}<sub>${task.meta.base}</sub></code><b>${escapeHtml(task.meta.operation)}</b><code>${escapeHtml(task.meta.right)}<sub>${task.meta.base}</sub></code><span class="visual-equals">=</span><i>?</i></div>`;
   }
   if (task.kind === "logic-value") {
     const values = Object.entries(task.meta.values).map(([name, value]) => `<span class="logic-value"><small>${escapeHtml(name)}</small><b>${value}</b></span>`).join("");
-    return `<div class="task-visual logic-visual">${values}<span class="logic-operator">НЕ</span><span class="logic-operator">И / ИЛИ</span><span class="logic-result">?</span></div>`;
+    return `<div class="task-visual logic-visual">${values}</div>`;
   }
   if (task.kind === "executor-number") {
     return `<div class="task-visual number-route"><span><small>СТАРТ</small><b>${task.meta.start}</b></span><div><i></i><i></i><i></i></div><span><small>ЦЕЛЬ</small><b>${task.meta.target}</b></span><small>команды 1 и 2</small></div>`;
@@ -215,23 +207,27 @@ function renderInput(task) {
   return "";
 }
 
-function renderDrawing(task, visiblePoints = null, drawingId = "task-drawing") {
+function renderDrawing(task, visiblePoints = null) {
   if (task.kind !== "executor-drawing") return "";
   const points = visiblePoints ?? task.meta.points;
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const minX = Math.min(...xs); const maxX = Math.max(...xs);
-  const minY = Math.min(...ys); const maxY = Math.max(...ys);
-  const width = Math.max(maxX - minX, 1); const height = Math.max(maxY - minY, 1);
-  const padding = 28; const viewWidth = 300; const viewHeight = 150;
-  const scale = Math.min((viewWidth - padding * 2) / width, (viewHeight - padding * 2) / height);
-  const offsetX = (viewWidth - width * scale) / 2;
-  const offsetY = (viewHeight - height * scale) / 2;
-  const svgPoints = points.map((point) => `${(point.x - minX) * scale + offsetX},${viewHeight - ((point.y - minY) * scale + offsetY)}`).join(" ");
+  // Размер клетки и границы остаются одинаковыми на всех шагах одной задачи.
+  const allPoints = task.meta.points;
+  const xs = allPoints.map((point) => point.x);
+  const ys = allPoints.map((point) => point.y);
+  const minX = Math.min(0, ...xs) - 1; const maxX = Math.max(0, ...xs) + 1;
+  const minY = Math.min(0, ...ys) - 1; const maxY = Math.max(0, ...ys) + 1;
+  const viewWidth = 360; const viewHeight = Math.min(220, Math.max(110, (maxY - minY) * 30 + 50)); const padding = 25;
+  const scale = Math.min(30, (viewWidth - padding * 2) / (maxX - minX), (viewHeight - padding * 2) / (maxY - minY));
+  const offsetX = (viewWidth - (maxX - minX) * scale) / 2;
+  const offsetY = (viewHeight - (maxY - minY) * scale) / 2;
   const start = points[0]; const end = points[points.length - 1];
   const mapX = (point) => (point.x - minX) * scale + offsetX;
   const mapY = (point) => viewHeight - ((point.y - minY) * scale + offsetY);
-  return `<div class="drawing-wrap"><svg class="drawing-svg" viewBox="0 0 ${viewWidth} ${viewHeight}" role="img" aria-label="Путь Чертёжника по выполненным шагам"><defs><pattern id="${drawingId}-grid" width="15" height="15" patternUnits="userSpaceOnUse"><path d="M 15 0 L 0 0 0 15" fill="none" stroke="#e2e8f0" stroke-width=".7"/></pattern></defs><rect width="${viewWidth}" height="${viewHeight}" fill="url(#${drawingId}-grid)"/><polyline points="${svgPoints}" fill="none" stroke="#4f46e5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${mapX(start)}" cy="${mapY(start)}" r="5" fill="#06b6d4"/><circle cx="${mapX(end)}" cy="${mapY(end)}" r="5" fill="#4f46e5"/></svg><div class="drawing-legend"><span><i class="start-dot"></i>начало (0, 0)</span><span><i class="end-dot"></i>сейчас (${end.x}, ${end.y})</span></div></div>`;
+  const svgPoints = points.map((point) => `${mapX(point)},${mapY(point)}`).join(" ");
+  const xAxis = mapY({ y: 0 }); const yAxis = mapX({ x: 0 });
+  const vertical = Array.from({ length: maxX - minX + 1 }, (_, i) => `<line x1="${mapX({ x: minX + i })}" y1="${mapY({ y: minY })}" x2="${mapX({ x: minX + i })}" y2="${mapY({ y: maxY })}"/>`).join("");
+  const horizontal = Array.from({ length: maxY - minY + 1 }, (_, i) => `<line x1="${mapX({ x: minX })}" y1="${mapY({ y: minY + i })}" x2="${mapX({ x: maxX })}" y2="${mapY({ y: minY + i })}"/>`).join("");
+  return `<div class="drawing-wrap"><svg class="drawing-svg" viewBox="0 0 ${viewWidth} ${viewHeight}" role="img" aria-label="Путь Чертёжника. Сейчас точка ${end.x}, ${end.y}. Одна клетка - одна единица."><g stroke="#d8e0eb" stroke-width=".7">${vertical}${horizontal}</g><g stroke="#718096" stroke-width="1.3"><line x1="${mapX({ x: minX })}" y1="${xAxis}" x2="${mapX({ x: maxX })}" y2="${xAxis}"/><line x1="${yAxis}" y1="${mapY({ y: minY })}" x2="${yAxis}" y2="${mapY({ y: maxY })}"/></g><g fill="#475569" font-size="11"><text x="${yAxis + 4}" y="${xAxis + 14}">0</text><text x="${mapX({ x: maxX }) - 5}" y="${xAxis - 5}">x</text><text x="${yAxis + 5}" y="${mapY({ y: maxY }) + 10}">y</text></g><polyline points="${svgPoints}" fill="none" stroke="#4f46e5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${mapX(start)}" cy="${mapY(start)}" r="5" fill="#06b6d4"/><circle cx="${mapX(end)}" cy="${mapY(end)}" r="5" fill="#4f46e5"/></svg><div class="drawing-legend"><span><i class="start-dot"></i>начало (${start.x}, ${start.y})</span><span><i class="end-dot"></i>сейчас (${end.x}, ${end.y})</span><span>1 клетка = 1</span></div></div>`;
 }
 
 function renderTrace(task, activeLine = -1) {
@@ -244,7 +240,7 @@ function renderFeedback(task) {
   if (!state.feedback) return "";
   const result = state.feedback.result;
   const steps = task.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
-  return `<section class="answer-feedback ${result.correct ? "is-correct" : result.empty ? "is-neutral" : "is-wrong"}" role="status"><div class="feedback-heading"><span class="feedback-icon" aria-hidden="true">${result.correct ? "✓" : result.empty ? "·" : "↺"}</span><div><strong>${escapeHtml(result.correct ? "Отлично, верно!" : result.empty ? "Нужен ответ" : "Пока не совпало")}</strong><p>${escapeHtml(result.message)}</p></div></div>${result.empty ? "" : `<div class="review-actions"><button class="text-button" type="button" data-action="review-task">Разобрать по шагам</button><button class="text-button" type="button" data-action="new-task">Ещё задача →</button></div><details class="solution-details"><summary>Посмотреть решение</summary><ol>${steps}</ol></details>`}</section>`;
+  return `<section class="answer-feedback ${result.correct ? "is-correct" : result.empty ? "is-neutral" : "is-wrong"}" role="status" tabindex="-1"><div class="feedback-heading"><span class="feedback-icon" aria-hidden="true">${result.correct ? "✓" : result.empty ? "·" : "↺"}</span><div><strong>${escapeHtml(result.correct ? "Отлично, верно!" : result.empty ? "Нужен ответ" : "Пока не совпало")}</strong><p>${escapeHtml(result.message)}</p></div></div>${result.empty ? "" : `<div class="review-actions"><button class="text-button" type="button" data-action="review-task">Решить по шагам</button><button class="text-button" type="button" data-action="new-task">Ещё задача →</button></div><details class="solution-details"><summary>Показать готовое решение</summary><ol>${steps}</ol></details>`}</section>`;
 }
 
 function renderTaskPanel(module) {
@@ -252,7 +248,7 @@ function renderTaskPanel(module) {
   const drawing = task.kind === "executor-drawing"
     ? renderDrawing(task, state.feedback && !state.feedback.result.empty ? null : task.meta.points.slice(0, 1)) : "";
   return `<section class="task-panel ${module.color}" aria-labelledby="task-title">
-    <div class="task-topline"><span class="task-index">САМОПРОВЕРКА</span><button class="text-button" type="button" data-action="new-task">Ещё задача ↻</button></div>
+    <div class="task-topline"><button class="text-button" type="button" data-action="new-task">Ещё задача ↻</button></div>
     <h2 id="task-title">${escapeHtml(task.prompt)}</h2>
     ${renderTaskVisual(task)}${drawing}${renderTrace(task)}
     <form id="exercise-form" novalidate>${renderInput(task)}<div class="submit-row"><button class="primary-button submit-button" type="submit">Проверить ответ <span aria-hidden="true">↗</span></button></div></form>
@@ -267,16 +263,16 @@ function makeLearningGuide(task) {
 function renderLearningPlan(guide) {
   const groups = [...new Set(guide.steps.map((step) => step.group))];
   const current = guide.steps[guide.index];
-  return `<details class="learning-plan"><summary>Все шаги <span>${guide.steps.length}</span></summary><ol>${groups.map((group) => `<li${group === current?.group ? ' class="is-current"' : ""}>${escapeHtml(group)}</li>`).join("")}</ol></details>`;
+  return `<details class="learning-plan"><summary>План решения</summary><ol>${groups.map((group) => `<li${group === current?.group ? ' class="is-current"' : ""}>${escapeHtml(group)}</li>`).join("")}</ol></details>`;
 }
 
 function renderLearningSteps(guide) {
   const current = guide.steps[guide.index];
-  const history = guide.history.length ? `<details class="learning-history"><summary>Выполнено шагов: ${guide.history.length}</summary><ol>${guide.history.map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.answerText)}</span><p>${escapeHtml(item.explanation)}</p></li>`).join("")}</ol></details>` : "";
+  const history = guide.history.length ? `<details class="learning-history"${current?.showHistory ? " open" : ""}><summary>Выполнено шагов: ${guide.history.length}</summary><ol>${guide.history.map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.answerText)}</span><p>${escapeHtml(item.explanation)}</p></li>`).join("")}</ol></details>` : "";
   const drawing = guide.task.kind === "executor-drawing"
-    ? renderDrawing(guide.task, guide.task.meta.points.slice(0, (guide.steps[guide.index - 1]?.pointCount ?? 0) + 1), "guide-drawing") : "";
+    ? renderDrawing(guide.task, guide.task.meta.points.slice(0, (guide.steps[guide.index - 1]?.pointCount ?? 0) + 1)) : "";
   if (!current) {
-    const answer = Array.isArray(guide.task.answer) ? guide.task.answer.join(", ") : guide.task.answer;
+    const answer = guide.task.kind === "executor-number" ? guide.history.at(-1)?.answerText : Array.isArray(guide.task.answer) ? guide.task.answer.join(", ") : guide.task.answer;
     return `<div class="learning-complete" role="status"><strong>Все шаги выполнены ✓</strong><p>Ответ: ${escapeHtml(answer)}.</p><div class="learning-next"><button class="primary-button" type="button" data-action="start-test">Проверь себя →</button><button class="text-button" type="button" data-action="new-task">Ещё пример ↻</button></div></div>${drawing}${history}`;
   }
   const controls = current.fields.map((field, index) => {
@@ -292,20 +288,78 @@ function renderLearningSteps(guide) {
     <div class="guided-progress"><span>Шаг ${guide.index + 1} из ${guide.steps.length}</span><span>${escapeHtml(current.group)}</span></div>
     <progress class="learning-meter" value="${guide.index}" max="${guide.steps.length}" aria-label="Выполненные шаги"></progress>
     ${feedback}<h3>${escapeHtml(current.title)}</h3>
-    <div class="compact-step-instruction"><p>${escapeHtml(current.prompt)}</p><details><summary>Как выполнить шаг</summary><p>${escapeHtml(current.hint)}</p></details></div>
+    <div class="compact-step-instruction"><p>${escapeHtml(current.prompt)}</p><details class="step-hint"><summary>Как выполнить шаг</summary><p>${escapeHtml(current.hint)}</p></details></div>
+    ${current.showHistory ? history : ""}
     <form id="learning-step-form" class="learning-step-form" novalidate>${controls}<button class="primary-button" type="submit">Проверить шаг →</button></form>
-  </div>${drawing}${history}`;
+  </div>${drawing}${current.showHistory ? "" : history}`;
+}
+
+function renderArithmeticColumn(guide) {
+  const { task, history, steps, index } = guide;
+  if (!task.kind.startsWith("arithmetic-") || !["+", "−", "×"].includes(task.meta.operation)) return "";
+  const { left, right, operation, base } = task.meta;
+  const width = operation === "×" ? left.length + right.length : Math.max(left.length, right.length);
+  const active = steps[index];
+  const position = active?.columnPosition ?? active?.multiplierPosition;
+  const completed = steps.slice(0, history.length);
+  const cells = (number, isMultiplier = false) => [...number.padStart(width, " ")].map((digit, column) =>
+    `<td${position === width - column && (!active?.multiplierPosition || isMultiplier) ? ' class="is-active"' : ""}>${digit === " " ? "&nbsp;" : escapeHtml(digit)}</td>`).join("");
+
+  let resultRows;
+  if (operation === "×") {
+    const partials = completed.filter((item) => item.multiplierPosition);
+    resultRows = partials.map((item) => `<tr><th scope="row">${item.multiplierPosition}</th>${cells(item.fields[0].answer)}</tr>`).join("");
+    if (!resultRows) resultRows = `<tr><th scope="row">=</th>${cells("?")}</tr>`;
+  } else {
+    const digits = Array(width).fill("·");
+    completed.filter((item) => item.columnPosition).forEach((item) => { digits[width - item.columnPosition] = item.fields[0].answer; });
+    resultRows = `<tr class="column-result"><th scope="row">=</th>${digits.map((digit, column) => `<td${position === width - column ? ' class="is-active"' : ""}>${escapeHtml(digit)}</td>`).join("")}</tr>`;
+    const lastColumn = completed.filter((item) => item.columnPosition).at(-1);
+    if (operation === "+" && lastColumn?.columnPosition === width && lastColumn.fields[1].answer === "1") {
+      resultRows += `<tr><td colspan="${width + 1}" class="column-note">Перенос 1 запиши слева от полученных цифр.</td></tr>`;
+    }
+  }
+  const carry = active?.columnPosition ? `<p class="column-note">${operation === "+" ? "Перенос" : "Займ"} из предыдущего разряда: ${active.incomingCarry}</p>` : "";
+  return `<figure class="arithmetic-column"><figcaption>${operation === "×" ? "Умножение столбиком" : "Считаем столбиком"} · основание ${base}</figcaption><table aria-label="Вычисление столбиком"><tbody><tr><th scope="row">&nbsp;</th>${cells(left)}</tr><tr class="column-separator"><th scope="row">${operation}</th>${cells(right, true)}</tr>${resultRows}</tbody></table>${operation === "×" && completed.some((item) => item.multiplierPosition) ? '<p class="column-note">Частичные произведения после проверки каждого разряда.</p>' : carry}</figure>`;
+}
+
+function renderLearningTruthTable(guide) {
+  const { task, steps, index } = guide;
+  if (!task.meta.rows) return "";
+  const variables = task.meta.variables;
+  const headings = variables.map((name) => `<th scope="col">${escapeHtml(name)}</th>`).join("");
+  const rows = task.meta.rows.map((row, rowIndex) => {
+    const group = `Строка ${rowIndex + 1}:`;
+    const lastStep = steps.findLastIndex((item) => item.group.startsWith(group));
+    const shownResult = lastStep >= 0 && index > lastStep ? row.result : "?";
+    const current = steps[index]?.group.startsWith(group);
+    return `<tr${current ? ' class="is-current"' : ""}>${variables.map((name) => `<td>${row.values[name]}</td>`).join("")}<td>${shownResult}</td></tr>`;
+  }).join("");
+  return `<div class="truth-table-wrap guided-truth-table"><table class="truth-table"><caption>Таблица истинности</caption><thead><tr>${headings}<th scope="col">Результат</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function renderLearningExample(module) {
   const guide = state.studyGuide;
   const task = guide.task;
   return `<section class="task-panel ${module.color}" aria-labelledby="task-title">
-    <div class="task-topline"><span class="task-index">ПРИМЕР ПО ШАГАМ</span><button class="text-button" type="button" data-action="new-task">Ещё пример ↻</button></div>
+    <div class="task-topline"><button class="text-button" type="button" data-action="new-task">Ещё пример ↻</button></div>
     <h2 id="task-title">${escapeHtml(task.prompt)}</h2>
-    ${renderTaskVisual(task)}${renderTrace(task, guide.steps[guide.index]?.codeLine ?? guide.steps[guide.index - 1]?.afterCodeLine)}
+    ${renderArithmeticColumn(guide) || renderTaskVisual(task)}${renderLearningTruthTable(guide)}${renderTrace(task, guide.steps[guide.index]?.codeLine ?? guide.steps[guide.index - 1]?.afterCodeLine)}
     ${renderLearningSteps(guide)}
   </section>`;
+}
+
+const systemNames = { 2: "Двоичная (2)", 8: "Восьмеричная (8)", 10: "Десятичная (10)", 16: "Шестнадцатеричная (16)" };
+
+function renderVariants(module, selected) {
+  if (module.id !== "systems") {
+    const options = taskVariants[module.id].map((variant) => `<option value="${variant.id}"${variant.id === selected ? " selected" : ""}>${escapeHtml(variant.label)}</option>`).join("");
+    return `<label class="variant-control" for="task-variant">Вид задания<select id="task-variant">${options}</select></label>`;
+  }
+  const isCompare = selected === "compare";
+  const { source, target } = state.systemBases;
+  const options = (selectedBase, otherBase) => Object.entries(systemNames).map(([base, label]) => `<option value="${base}"${Number(base) === selectedBase ? " selected" : ""}${Number(base) === otherBase ? " disabled" : ""}>${label}</option>`).join("");
+  return `<div class="system-variants"><label class="variant-control" for="task-variant">Вид задания<select id="task-variant"><option value="convert"${isCompare ? "" : " selected"}>Перевод числа</option><option value="compare"${isCompare ? " selected" : ""}>Сравнение чисел</option></select></label>${isCompare ? "" : `<div class="base-controls"><label class="variant-control" for="source-base">Из какой системы<select id="source-base">${options(source, target)}</select></label><label class="variant-control" for="target-base">В какую систему<select id="target-base">${options(target, source)}</select></label></div>`}</div>`;
 }
 
 function renderModuleScreen() {
@@ -313,26 +367,35 @@ function renderModuleScreen() {
   const modeButtons = modes.map((mode) => `<button type="button" class="mode-tab ${state.mode === mode.id ? "is-active" : ""}" data-mode="${mode.id}" aria-pressed="${state.mode === mode.id}"><strong>${escapeHtml(mode.label)}</strong><span>${escapeHtml(mode.note)}</span></button>`).join("");
   const progress = state.progress.modules[module.id];
   const selected = getTaskVariant(state.studyTask);
-  const variants = taskVariants[module.id].map((variant) => `<option value="${variant.id}"${variant.id === selected ? " selected" : ""}>${escapeHtml(variant.label)}</option>`).join("");
   return `<main class="page-content module-page">
     <button class="back-link" type="button" data-action="home"><span aria-hidden="true">←</span> Все темы</button>
-    <section class="module-heading ${module.color}"><div><p class="eyebrow">тема ${module.number} <span>·</span> ${escapeHtml(module.skills)}</p><h1>${escapeHtml(module.title)}</h1><p>${escapeHtml(module.description)}</p></div><div class="module-score"><span>ТВОЙ РЕЗУЛЬТАТ</span><strong>${progress.correct}<i>/</i>${progress.attempts}</strong><small>верных ответов</small></div></section>
-    <div class="lesson-controls"><div class="mode-switcher" role="group" aria-label="Режим занятия">${modeButtons}</div><label class="variant-control" for="task-variant">Вид задания<select id="task-variant">${variants}</select></label></div>
-    ${renderModeNotice()}
+    <section class="module-heading ${module.color}"><div><h1>${escapeHtml(module.title)}</h1><p>${escapeHtml(module.description)}</p></div><div class="module-score"><span>Результат самопроверки</span><strong>${progress.attempts ? `${progress.correct} из ${progress.attempts}` : "Пока нет ответов"}</strong>${progress.attempts ? "<small>верно с первой попытки</small>" : ""}</div></section>
+    <div class="lesson-controls"><div class="mode-switcher" role="group" aria-label="Режим занятия">${modeButtons}</div>${renderVariants(module, selected)}</div>
     <div class="learning-layout ${state.mode === "test" ? "solo-task" : "with-lesson"}">${state.mode === "study" ? renderLearningExample(module) : renderTaskPanel(module)}${renderLesson(module)}</div>
   </main>`;
 }
 
 function render() {
+  // Сохраняем открытые подсказки и фокус при обновлении текущего экрана.
+  const detailClasses = ["topic-theory", "learning-plan", "learning-history", "step-hint", "worked-example", "solution-details"];
+  const openDetails = detailClasses.filter((name) => app.querySelector?.(`details.${name}`)?.open);
+  const active = document.activeElement;
+  const activeSelector = active?.id ? `#${active.id}` : active?.dataset?.mode ? `[data-mode="${active.dataset.mode}"]` : active?.dataset?.action ? `[data-action="${active.dataset.action}"]` : "";
   let screen = "";
   if (state.screen === "home") screen = renderHome();
   else if (state.screen === "progress") screen = renderProgress();
   else screen = renderModuleScreen();
   app.innerHTML = `${renderHeader()}${screen}<footer class="site-footer"><span>ИНФОЛАБ</span><span>Интерактивная лаборатория информатики</span></footer>`;
+  for (const name of openDetails) {
+    const detail = app.querySelector?.(`details.${name}`);
+    if (detail) detail.open = true;
+  }
+  if (activeSelector) app.querySelector?.(activeSelector)?.focus?.({ preventScroll: true });
 }
 
 function setStudyTask(task) {
   state.studyTask = task;
+  if (task.kind === "systems-conversion") state.systemBases = { source: task.meta.sourceBase, target: task.meta.targetBase };
   state.studyGuide = makeLearningGuide(task);
   state.reviewedTestTask = null;
 }
@@ -450,14 +513,28 @@ app.addEventListener("click", (event) => {
   else if (action === "new-task") { nextTask(); render(); }
   else if (action === "review-task") { saveVisibleAnswer(); reviewTestTask(); render(); }
   else if (action === "start-test") { saveVisibleAnswer(); startSelfTest(state.attemptRecorded); render(); }
-  else if (action === "clear-progress") { state.progress = clearProgress(); state.notice = "Результаты очищены."; render(); }
+  else if (action === "clear-progress" && globalThis.confirm("Очистить все результаты? Это действие нельзя отменить.")) { state.progress = clearProgress(); state.notice = "Результаты очищены."; render(); }
 });
 
 app.addEventListener("change", (event) => {
-  if (event.target.id !== "task-variant" || state.screen !== "module") return;
+  if (!["task-variant", "source-base", "target-base"].includes(event.target.id) || state.screen !== "module") return;
   const module = findModule(state.moduleId);
-  if (!taskVariants[module.id].some((variant) => variant.id === event.target.value)) return;
-  setStudyTask(generateTaskForVariant(module, event.target.value));
+  saveVisibleAnswer();
+  const hasAnswer = (value) => Array.isArray(value) ? value.some((item) => String(item).trim()) : Boolean(String(value ?? "").trim());
+  const unfinishedStudy = state.studyGuide.index < state.studyGuide.steps.length
+    && (state.studyGuide.index > 0 || hasAnswer(state.studyGuide.draft));
+  const unfinishedTest = state.task && !state.attemptRecorded && hasAnswer(state.currentAnswer);
+  const unfinished = unfinishedStudy || unfinishedTest;
+  if (unfinished && !globalThis.confirm("Сменить вид задания? Незавершённое решение будет потеряно.")) { render(); return; }
+  let variant = event.target.value;
+  if (module.id === "systems") {
+    const { source, target } = state.systemBases;
+    if (event.target.id === "source-base") variant = `convert-${event.target.value}-${target}`;
+    else if (event.target.id === "target-base") variant = `convert-${source}-${event.target.value}`;
+    else if (variant === "convert") variant = `convert-${source}-${target}`;
+  }
+  if (!taskVariants[module.id].some((item) => item.id === variant)) { render(); return; }
+  setStudyTask(generateTaskForVariant(module, variant));
   if (state.mode === "test") setTestTask(generateSimilarTask(module, state.studyTask));
   render();
 });
@@ -484,6 +561,7 @@ app.addEventListener("submit", (event) => {
   } else if (state.attemptRecorded) result.message += " В результатах учитывается первая попытка.";
   state.feedback = { result, counted };
   render();
+  app.querySelector?.(".answer-feedback")?.focus?.({ preventScroll: true });
 });
 
 render();

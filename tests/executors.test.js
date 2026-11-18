@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkAnswer, computeDrawing, generateTask, simulateNumberCommands } from "../js/modules/executors.js";
+import { checkAnswer, computeDrawing, findPossibleLastCommands, generateTask, generateVariantTask, simulateNumberCommands } from "../js/modules/executors.js";
 import { makeRandom } from "./helpers.js";
 
 test("числовой исполнитель применяет команды по порядку", () => {
@@ -46,4 +46,20 @@ test("исполнитель принимает другой корректны�
     meta: { start: 5, target: 8, commandLimit: 3 }
   };
   assert.equal(checkAnswer(task, "211").correct, true);
+});
+
+test("генератор не предлагает пустой путь, если случайные команды вернули в начало", () => {
+  // 3 → 2 → 4 → 3: последний шаг должен быть заменён.
+  const numbers = [0, 0, 0, 0.99, 0];
+  const task = generateVariantTask("number", () => numbers.shift() ?? 0);
+  assert.equal(task.meta.start, 3);
+  assert.notEqual(task.meta.target, task.meta.start);
+  assert.equal(checkAnswer(task, task.answer).correct, true);
+  assert.equal(task.meta.trace.at(-1), task.meta.target);
+});
+
+test("поиск последней команды учитывает все пути и ограничение на их длину", () => {
+  assert.deepEqual(findPossibleLastCommands(3, 4, 2), ["2"]);
+  assert.deepEqual(findPossibleLastCommands(3, 4, 3), ["1", "2"]);
+  assert.deepEqual(findPossibleLastCommands(3, 100, 2), []);
 });

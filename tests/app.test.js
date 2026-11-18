@@ -55,6 +55,7 @@ test("два режима сохраняют шаги, проверяют сам
   const originalDocument = globalThis.document;
   const originalStorage = globalThis.localStorage;
   const originalRandom = Math.random;
+  const originalConfirm = globalThis.confirm;
   const storage = new MemoryStorage();
   // Сохранение предыдущей версии не содержит режима. Новая версия обязана его сохранить.
   storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, modules: { systems: { attempts: 2, correct: 1 } } }));
@@ -79,16 +80,31 @@ test("два режима сохраняют шаги, проверяют сам
   };
   globalThis.document = { querySelector: () => root };
   globalThis.localStorage = storage;
+  globalThis.confirm = () => true;
   Math.random = () => 0.5;
   t.after(() => {
     globalThis.document = originalDocument;
     globalThis.localStorage = originalStorage;
+    globalThis.confirm = originalConfirm;
     Math.random = originalRandom;
     for (const { module, name, original } of originals) module[name] = original;
   });
   await import("../js/app.js");
   const click = (data) => root.handlers.click({ target: { closest: () => ({ dataset: data }) } });
-  const changeVariant = (value) => root.handlers.change({ target: { id: "task-variant", value } });
+  const changeVariant = (value) => {
+    const change = (id, nextValue) => root.handlers.change({ target: { id, value: nextValue } });
+    if (!value.startsWith("convert-")) { change("task-variant", value); return; }
+    const [, source, target] = value.split("-").map((item, index) => index ? Number(item) : item);
+    if (!root.innerHTML.includes('id="source-base"')) change("task-variant", "convert");
+    let current = shownTask().meta;
+    if (current.targetBase === source && current.sourceBase !== source) {
+      const temporary = [2, 8, 10, 16].find((base) => base !== current.sourceBase && base !== source);
+      change("target-base", String(temporary));
+      current = shownTask().meta;
+    }
+    if (current.sourceBase !== source) change("source-base", String(source));
+    if (shownTask().meta.targetBase !== target) change("target-base", String(target));
+  };
   const submit = (form) => root.handlers.submit({ target: form, preventDefault() {} });
   const progress = () => JSON.parse(storage.getItem(STORAGE_KEY));
   const counts = (id) => progress()?.modules[id] ?? { attempts: 0, correct: 0 };
@@ -195,7 +211,7 @@ test("два режима сохраняют шаги, проверяют сам
         changeVariant(variant.id);
         const task = shownTask();
         assert.equal(getTaskVariant(task), variant.id);
-        assert.ok(root.innerHTML.includes(`value="${variant.id}" selected`));
+        if (module.id !== "systems") assert.ok(root.innerHTML.includes(`value="${variant.id}" selected`));
         const firstStep = createLearningSteps(task)[0];
         submit(makeStepForm(firstStep.fields.map((field) => field.answer)));
         assert.doesNotMatch(root.innerHTML, /guided-feedback is-wrong/);
@@ -204,7 +220,7 @@ test("два режима сохраняют шаги, проверяют сам
     assert.equal(storage.getItem(STORAGE_KEY), before);
   });
   click({ action: "progress" });
-  assert.match(root.innerHTML, /Мой прогресс/);
+  assert.match(root.innerHTML, /<h1>Результаты<\/h1>/);
   assert.equal(counts("systems").attempts, 4, "две попытки прежней версии не потеряны");
   click({ action: "clear-progress" });
   assert.match(root.innerHTML, /Результаты очищены/);

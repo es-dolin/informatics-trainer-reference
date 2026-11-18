@@ -31,6 +31,13 @@ test("пошаговый расчёт показывает отрицание и
   assert.ok(result.steps.some((step) => step.includes("∧")));
 });
 
+test("отрицание выражения в скобках выполняется после вычисления скобок", () => {
+  const expression = not(or(variable("A"), variable("B")));
+  const result = evaluateWithSteps(expression, { A: 0, B: 1 });
+  assert.equal(result.value, false);
+  assert.deepEqual(result.steps, ["(A ∨ B) = 1", "¬(A ∨ B) = 0"]);
+});
+
 test("все варианты генератора можно решить и проверить", () => {
   const rng = makeRandom(77);
   const kinds = new Set();
