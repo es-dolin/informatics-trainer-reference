@@ -1,0 +1,145 @@
+# От Python к JavaScript
+
+Если ты уже знаешь основы Python, многие идеи в JavaScript знакомы. Главное различие — точные знаки и то, как браузер связывает код со страницей.
+
+## Переменные
+
+В Python можно написать:
+
+```python
+number = 12
+number = number + 1
+```
+
+В JavaScript для значения, которое не собираемся переназначать, пишем `const`:
+
+```js
+const number = 12;
+```
+
+Для переменной, которая будет меняться, пишем `let`:
+
+```js
+let current = 12;
+current = current + 1;
+```
+
+Точка с запятой часто ставится в конце команды. Фигурные скобки задают блок кода.
+
+## Условия
+
+Python использует отступы и двоеточие:
+
+```python
+if value < 10:
+    answer = True
+else:
+    answer = False
+```
+
+В JavaScript блоки выделяются фигурными скобками:
+
+```js
+if (value < 10) {
+  answer = true;
+} else {
+  answer = false;
+}
+```
+
+В JavaScript логические значения пишутся `true` и `false` (строчными буквами). Операторы И, ИЛИ и НЕ — `&&`, `||` и `!`.
+
+## Циклы и массивы
+
+Обычный цикл `for` в Python часто выглядит так:
+
+```python
+for number in numbers:
+    print(number)
+```
+
+В JavaScript похожий цикл выглядит так:
+
+```js
+for (const number of numbers) {
+  console.log(number);
+}
+```
+
+Массивы похожи на списки Python: `const numbers = [2, 4, 6];`. Метод `numbers.map(...)` создаёт новый массив, преобразуя каждый элемент. В тренажёре обычные циклы часто выбраны вместо компактных цепочек методов, чтобы шаги было легче читать.
+
+## Объекты и словари
+
+Словарь Python хранит пары «ключ — значение»:
+
+```python
+point = {"x": 3, "y": 5}
+```
+
+В JavaScript похожая структура называется объектом:
+
+```js
+const point = { x: 3, y: 5 };
+```
+
+Объекты удобно использовать, когда у задания несколько связанных частей. Например, задание хранит формулировку, ответ, подсказку и шаги.
+
+## Функции и возвращаемое значение
+
+Функция Python:
+
+```python
+def double(value):
+    return value * 2
+```
+
+Та же идея в JavaScript:
+
+```js
+function double(value) {
+  return value * 2;
+}
+```
+
+`return` возвращает результат в место, откуда функцию вызвали. Например, генератор задания возвращает объект, который потом покажет интерфейс.
+
+## Браузер: DOM и события
+
+DOM — это дерево элементов HTML, которым браузер представляет страницу. В приложении `document.querySelector("#app")` находит главный контейнер, а событие `click` сообщает, что пользователь нажал кнопку.
+
+```js
+app.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-action]");
+  if (button?.dataset.action === "home") {
+    showHomePage();
+  }
+});
+```
+
+`addEventListener` назначает функцию-обработчик события. `event.target` — элемент, на котором произошло нажатие. `dataset.action` читает `data-action` из HTML.
+
+## Импорт и экспорт
+
+В Python модули подключают через `import`. В браузерном JavaScript применяются `export` и `import`:
+
+```js
+// В systems.js
+export function fromDecimal(number, base) { /* ... */ }
+
+// В другом файле
+import { fromDecimal } from "./systems.js";
+```
+
+`export` открывает функцию другим файлам, а `import` подключает её. Адрес начинается с `./`, потому что файл находится рядом.
+
+## Локальное сохранение
+
+`localStorage` сохраняет строки между посещениями страницы на этом устройстве. Объект сначала преобразуется в строку JSON:
+
+```js
+localStorage.setItem("progress", JSON.stringify(progress));
+const savedText = localStorage.getItem("progress");
+const savedProgress = JSON.parse(savedText);
+```
+
+Чтение и запись обёрнуты в `try/catch`: браузер может запретить хранилище, а строка JSON может оказаться повреждённой.
