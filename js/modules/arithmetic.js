@@ -38,12 +38,13 @@ function subtractColumnSteps(left, right, base) {
   let borrow = 0;
 
   for (let index = width - 1; index >= 0; index -= 1) {
-    const top = digitValue(a[index]) - borrow;
+    const incomingBorrow = borrow;
+    const top = digitValue(a[index]) - incomingBorrow;
     const bottom = digitValue(b[index]);
     const didBorrow = top < bottom;
     const resultDigit = didBorrow ? top + base - bottom : top - bottom;
     borrow = didBorrow ? 1 : 0;
-    notes.push(`Разряд ${width - index}: ${a[index]} − ${b[index]}${didBorrow ? `: занимаем 1 разряд слева и получаем ${DIGITS[resultDigit]}` : ` = ${DIGITS[resultDigit]}`}.`);
+    notes.push(`Разряд ${width - index}: ${digitValue(a[index])} − займ ${incomingBorrow} − ${digitValue(b[index])}${didBorrow ? ` + основание ${base}` : ""} = ${resultDigit}; записываем ${DIGITS[resultDigit]}${didBorrow ? ", занимаем 1 разряд слева" : ""}.`);
   }
   return notes;
 }

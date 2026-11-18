@@ -2,12 +2,13 @@
 // в отдельных модулях, а здесь мы только показываем задание и передаём ответ.
 import { modules, findModule } from "./modules/index.js";
 import { clearProgress, loadProgress, recordAttempt, shouldCountAnswer } from "./storage.js";
+import { createLearningSteps, checkLearningStep } from "./learning-steps.js";
 
 const app = document.querySelector("#app");
 const modes = [
-  { id: "study", label: "Изучай", note: "Теория и пример" },
-  { id: "practice", label: "Тренируйся", note: "Задачи с подсказкой" },
-  { id: "test", label: "Проверь себя", note: "Решай самостоятельно" }
+  { id: "study", label: "Изучай", note: "Пример по шагам" },
+  { id: "practice", label: "Тренируйся", note: "План и помощь по шагам" },
+  { id: "test", label: "Проверь себя", note: "Без подсказок" }
 ];
 
 const state = {
@@ -23,6 +24,9 @@ const state = {
   currentAnswer: null,
   attemptRecorded: false,
   guided: null,
+  studyGuide: null,
+  practiceGuide: null,
+  practiceStepsVisible: false,
   progress: loadProgress()
 };
 
@@ -64,9 +68,6 @@ function renderTopicVisual(module) {
 }
 
 function renderHeader() {
-  const attempts = allAttempts();
-  const responseWord = attempts === 1 ? "ответ" : attempts > 1 && attempts < 5 ? "ответа" : "ответов";
-  const progressLabel = `${attempts} ${responseWord}`;
   return `
     <header class="topbar">
       <button class="brand" type="button" data-action="home" aria-label="На главную">
@@ -77,7 +78,6 @@ function renderHeader() {
         <button class="topnav-link ${state.screen === "home" || state.screen === "module" ? "is-current" : ""}" type="button" data-action="home">Тренажёры</button>
         <button class="topnav-link ${state.screen === "progress" ? "is-current" : ""}" type="button" data-action="progress">Результаты</button>
       </nav>
-      <button class="topbar-progress" type="button" data-action="progress"><span class="pulse-dot" aria-hidden="true"></span><span>${escapeHtml(progressLabel)}</span><b aria-hidden="true">↗</b></button>
     </header>`;
 }
 
@@ -99,8 +99,8 @@ function renderHome() {
     <main class="page-content home-page">
       <section class="hero-grid" aria-labelledby="home-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-line"></span> лаборатория практики</p>
-          <h1 id="home-title">Изучай.<br>Пробуй.<br><span>Понимай.</span></h1>
+          <p class="eyebrow"><span class="eyebrow-line"></span> информатика в действии</p>
+          <h1 id="home-title">Изучай.<br>Тренируйся.<br><span>Проверь себя.</span></h1>
           <p class="hero-description">Информатика через интерактивные задания и разбор решений. Пять тем для практики в 8–9 классе.</p>
           <button class="primary-button" type="button" data-action="start-first">Начать тренировку <span aria-hidden="true">↘</span></button>
           <div class="hero-footnote"><span class="mini-check">✓</span> Задания с проверкой · подсказки · разбор решений</div>
@@ -121,9 +121,9 @@ function renderHome() {
       </section>
       <section class="method-strip" aria-label="Как учиться в ИнфоЛаб">
         <div class="method-intro"><span class="method-index">ТВОЙ ЦИКЛ ОБУЧЕНИЯ</span><strong>От первого шага до уверенного ответа</strong></div>
-        <div class="method-step"><b>01</b><span><strong>Изучай</strong><small>Теория и пример</small></span></div>
+        <div class="method-step"><b>01</b><span><strong>Изучай</strong><small>Пример по шагам</small></span></div>
         <span class="method-arrow" aria-hidden="true">→</span>
-        <div class="method-step"><b>02</b><span><strong>Тренируйся</strong><small>Задачи с подсказкой</small></span></div>
+        <div class="method-step"><b>02</b><span><strong>Тренируйся</strong><small>План и помощь по шагам</small></span></div>
         <span class="method-arrow" aria-hidden="true">→</span>
         <div class="method-step"><b>03</b><span><strong>Проверь себя</strong><small>Решай самостоятельно</small></span></div>
       </section>
@@ -178,9 +178,9 @@ function renderLesson(module) {
 
 function renderModeNotice() {
   const notes = {
-    study: "Разберись в примере и пройди шаги сам.",
-    practice: "Подсказка появится, когда понадобится.",
-    test: "Решай самостоятельно, затем посмотри разбор."
+    study: "Разбери учебный пример: выполняй шаги и проверяй промежуточные ответы.",
+    practice: "Решай задачу. Если застрял, открой план и пройди нужные шаги.",
+    test: "Реши задачу без плана и подсказок. Разбор появится после ответа."
   };
   return `<p class="mode-note"><span class="mode-status-dot" aria-hidden="true"></span>${notes[state.mode]}</p>`;
 }
@@ -236,9 +236,9 @@ function renderInput(task) {
   return "";
 }
 
-function renderDrawing(task) {
+function renderDrawing(task, visiblePoints = null, drawingId = "task-drawing") {
   if (task.kind !== "executor-drawing") return "";
-  const points = task.meta.points;
+  const points = visiblePoints ?? task.meta.points;
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const minX = Math.min(...xs); const maxX = Math.max(...xs);
@@ -252,12 +252,13 @@ function renderDrawing(task) {
   const start = points[0]; const end = points[points.length - 1];
   const mapX = (point) => (point.x - minX) * scale + offsetX;
   const mapY = (point) => viewHeight - ((point.y - minY) * scale + offsetY);
-  return `<div class="drawing-wrap"><svg class="drawing-svg" viewBox="0 0 ${viewWidth} ${viewHeight}" role="img" aria-label="Путь Чертёжника от начала до конечной точки"><defs><pattern id="small-grid" width="15" height="15" patternUnits="userSpaceOnUse"><path d="M 15 0 L 0 0 0 15" fill="none" stroke="#e2e8f0" stroke-width=".7"/></pattern></defs><rect width="${viewWidth}" height="${viewHeight}" fill="url(#small-grid)"/><polyline points="${svgPoints}" fill="none" stroke="#4f46e5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${mapX(start)}" cy="${mapY(start)}" r="5" fill="#06b6d4"/><circle cx="${mapX(end)}" cy="${mapY(end)}" r="5" fill="#4f46e5"/></svg><div class="drawing-legend"><span><i class="start-dot"></i>начало (0, 0)</span><span><i class="end-dot"></i>конец</span></div></div>`;
+  return `<div class="drawing-wrap"><svg class="drawing-svg" viewBox="0 0 ${viewWidth} ${viewHeight}" role="img" aria-label="Путь Чертёжника по выполненным шагам"><defs><pattern id="${drawingId}-grid" width="15" height="15" patternUnits="userSpaceOnUse"><path d="M 15 0 L 0 0 0 15" fill="none" stroke="#e2e8f0" stroke-width=".7"/></pattern></defs><rect width="${viewWidth}" height="${viewHeight}" fill="url(#${drawingId}-grid)"/><polyline points="${svgPoints}" fill="none" stroke="#4f46e5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${mapX(start)}" cy="${mapY(start)}" r="5" fill="#06b6d4"/><circle cx="${mapX(end)}" cy="${mapY(end)}" r="5" fill="#4f46e5"/></svg><div class="drawing-legend"><span><i class="start-dot"></i>начало (0, 0)</span><span><i class="end-dot"></i>сейчас (${end.x}, ${end.y})</span></div></div>`;
 }
 
-function renderTrace(task) {
+function renderTrace(task, activeLine = -1) {
   if (!task.code) return "";
-  return `<div class="code-card"><div class="code-card-head"><span><i aria-hidden="true"></i> ПРИМЕР ПРОГРАММЫ</span><small>Python</small></div><pre><code>${escapeHtml(task.code)}</code></pre></div>`;
+  const lines = task.code.split("\n").map((line, index) => `<span class="code-line${index === activeLine ? " is-active" : ""}">${index === activeLine ? `<span class="sr-only">Текущая строка: </span>` : ""}${escapeHtml(line) || " "}</span>`).join("");
+  return `<div class="code-card"><div class="code-card-head"><span><i aria-hidden="true"></i> ПРИМЕР ПРОГРАММЫ</span><small>Python</small></div><pre><code>${lines}</code></pre></div>`;
 }
 
 function renderFeedback(task) {
@@ -275,7 +276,8 @@ function renderTaskPanel(module) {
     <section class="task-panel ${module.color}" aria-labelledby="task-title">
       <div class="task-topline"><div><span class="task-index">НОВОЕ ЗАДАНИЕ</span><span class="task-dot" aria-hidden="true"></span><span class="task-mode-label">${escapeHtml(modes.find((mode) => mode.id === state.mode).label)}</span></div><button class="icon-button" type="button" data-action="new-task" aria-label="Новое задание" title="Новое задание">↻</button></div>
       <h2 id="task-title">${escapeHtml(task.prompt)}</h2>
-      ${renderTaskVisual(task)}${renderDrawing(task)}${renderTrace(task)}
+      ${renderTaskVisual(task)}${task.kind === "executor-drawing" && !(state.mode === "practice" && state.practiceStepsVisible) ? renderDrawing(task, state.feedback && !state.feedback.result.empty ? null : task.meta.points.slice(0, 1)) : ""}${renderTrace(task, state.mode === "practice" && state.practiceStepsVisible ? state.practiceGuide.steps[state.practiceGuide.index]?.codeLine : -1)}
+      ${state.mode === "practice" ? renderPracticeSupport() : ""}
       ${hintButton}${hint}
       <form id="exercise-form" novalidate>${renderInput(task)}<div class="submit-row"><button class="primary-button submit-button" type="submit">Проверить ответ <span aria-hidden="true">↗</span></button><span class="enter-note">Enter ↵</span></div></form>
       ${renderFeedback(task)}
@@ -356,12 +358,70 @@ function renderSystemsWalkthrough(module) {
   </section>`;
 }
 
+function makeLearningGuide(task) {
+  return { task, steps: createLearningSteps(task), index: 0, draft: [], history: [], feedback: null, hintVisible: false };
+}
+
+function activeLearningGuide() {
+  return state.mode === "study" ? state.studyGuide : state.practiceGuide;
+}
+
+function renderLearningPlan(guide) {
+  const groups = [...new Set(guide.steps.map((step) => step.group))];
+  return `<details class="learning-plan"><summary>План решения <span>${guide.steps.length} шагов</span></summary><ol>${groups.map((group) => `<li>${escapeHtml(group)}</li>`).join("")}</ol></details>`;
+}
+
+function renderLearningSteps(guide) {
+  const current = guide.steps[guide.index];
+  const history = guide.history.length ? `<details class="learning-history"><summary>Выполнено шагов: ${guide.history.length}</summary><ol>${guide.history.map((item) => `<li><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.answerText)}</span><p>${escapeHtml(item.explanation)}</p></li>`).join("")}</ol></details>` : "";
+  const drawing = guide.task.kind === "executor-drawing"
+    ? renderDrawing(guide.task, guide.task.meta.points.slice(0, (guide.steps[guide.index - 1]?.pointCount ?? 0) + 1), "guide-drawing") : "";
+  if (!current) {
+    const answer = Array.isArray(guide.task.answer) ? guide.task.answer.join(", ") : guide.task.answer;
+    return `<div class="learning-complete" role="status"><strong>Все шаги выполнены ✓</strong><p>${state.mode === "study" ? `Ответ: ${escapeHtml(answer)}. Теперь попробуй решить другую задачу.` : "Теперь запиши итоговый ответ в задании ниже. К выполненным шагам можно вернуться."}</p>${state.mode === "study" ? `<button class="primary-button" type="button" data-mode="practice">Перейти к тренировке →</button>` : ""}</div>${drawing}${history}`;
+  }
+  const controls = current.fields.map((field, index) => {
+    const value = guide.draft[index] ?? "";
+    const wrong = guide.feedback?.correctFields?.[index] === false;
+    const control = field.options
+      ? `<select id="learning-${index}" name="learning-${index}"${wrong ? ' aria-invalid="true"' : ""}><option value="">Выбери</option>${field.options.map((option) => `<option value="${escapeHtml(option)}"${value === option ? " selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select>`
+      : `<input id="learning-${index}" name="learning-${index}" type="text" value="${escapeHtml(value)}"${field.base === 10 ? ' inputmode="numeric"' : ""}${wrong ? ' aria-invalid="true"' : ""} autocomplete="off" spellcheck="false">`;
+    return `<label for="learning-${index}">${escapeHtml(field.label)}${control}</label>`;
+  }).join("");
+  const feedback = guide.feedback ? `<p class="guided-feedback ${guide.feedback.correct ? "is-correct" : guide.feedback.empty ? "is-neutral" : "is-wrong"}" role="status">${escapeHtml(guide.feedback.message)}</p>` : "";
+  return `<div class="learning-step">
+    <div class="guided-progress"><span>Шаг ${guide.index + 1} из ${guide.steps.length}</span><span>${escapeHtml(current.group)}</span></div>
+    <progress class="learning-meter" value="${guide.index}" max="${guide.steps.length}" aria-label="Выполненные шаги"></progress>
+    ${feedback}<h3>${escapeHtml(current.title)}</h3><p class="learning-question">${escapeHtml(current.prompt)}</p>
+    <form id="learning-step-form" class="learning-step-form" novalidate>${controls}<button class="primary-button" type="submit">Проверить шаг →</button></form>
+    <button class="text-button learning-hint" type="button" data-action="learning-hint" aria-expanded="${guide.hintVisible}">${guide.hintVisible ? "Скрыть подсказку к шагу" : "Подсказка к шагу"}</button>
+    ${guide.hintVisible ? `<p class="hint-box">${escapeHtml(current.hint)}</p>` : ""}
+  </div>${drawing}${history}`;
+}
+
+function renderPracticeSupport() {
+  return `<div class="practice-support">${renderLearningPlan(state.practiceGuide)}
+    <button class="text-button walkthrough-toggle" type="button" data-action="practice-steps" aria-expanded="${state.practiceStepsVisible}" aria-controls="practice-walkthrough">${state.practiceStepsVisible ? "Скрыть пошаговую помощь" : "Решить по шагам"}</button>
+    ${state.practiceStepsVisible ? `<div id="practice-walkthrough">${renderLearningSteps(state.practiceGuide)}</div>` : ""}</div>`;
+}
+
+function renderLearningExample(module) {
+  const guide = state.studyGuide;
+  const task = guide.task;
+  return `<section class="task-panel ${module.color}" aria-labelledby="task-title">
+    <div class="task-topline"><span class="task-index">ПРИМЕР ПО ШАГАМ</span><button class="icon-button" type="button" data-action="new-task" aria-label="Другой пример" title="Другой пример">↻</button></div>
+    <h2 id="task-title">${escapeHtml(task.prompt)}</h2>
+    ${renderTaskVisual(task)}${renderTrace(task, guide.steps[guide.index]?.codeLine ?? guide.steps[guide.index - 1]?.afterCodeLine)}
+    ${renderLearningPlan(guide)}${renderLearningSteps(guide)}
+  </section>`;
+}
+
 function renderModuleScreen() {
   const module = findModule(state.moduleId);
   const modeButtons = modes.map((mode) => `<button type="button" class="mode-tab ${state.mode === mode.id ? "is-active" : ""}" data-mode="${mode.id}" aria-pressed="${state.mode === mode.id}"><strong>${escapeHtml(mode.label)}</strong><span>${escapeHtml(mode.note)}</span></button>`).join("");
   const progress = state.progress.modules[module.id];
-  const mainActivity = state.mode === "study" && module.id === "systems"
-    ? renderSystemsWalkthrough(module)
+  const mainActivity = state.mode === "study"
+    ? module.id === "systems" ? renderSystemsWalkthrough(module) : renderLearningExample(module)
     : renderTaskPanel(module);
 
   return `
@@ -401,6 +461,9 @@ function refreshTasks() {
   state.feedback = null;
   state.currentAnswer = null;
   state.attemptRecorded = false;
+  state.studyGuide = makeLearningGuide(state.exampleTask);
+  state.practiceGuide = makeLearningGuide(state.task);
+  state.practiceStepsVisible = false;
   state.guided = module.id === "systems" ? {
     task: module.generateGuidedConversionTask(),
     stepIndex: 0,
@@ -445,6 +508,28 @@ function saveVisibleAnswer() {
   const finalForm = app.querySelector("#guided-final-form");
   if (finalForm && state.guided) {
     state.guided.draft.finalAnswer = finalForm.querySelector("[name=finalAnswer]")?.value ?? "";
+  }
+
+  const learningForm = app.querySelector("#learning-step-form");
+  if (learningForm && state.mode !== "test") {
+    const guide = activeLearningGuide();
+    const step = guide?.steps[guide.index];
+    if (step) guide.draft = step.fields.map((_, index) => learningForm.querySelector(`[name=learning-${index}]`)?.value ?? "");
+  }
+}
+
+function submitLearningStep(form) {
+  const guide = activeLearningGuide();
+  const step = guide?.steps[guide.index];
+  if (!step) return;
+  guide.draft = step.fields.map((_, index) => form.querySelector(`[name=learning-${index}]`)?.value ?? "");
+  const result = checkLearningStep(step, guide.draft);
+  guide.feedback = result;
+  if (result.correct) {
+    guide.history.push({ title: step.title, answerText: guide.draft.join(", "), explanation: step.explanation });
+    guide.index += 1;
+    guide.draft = [];
+    guide.hintVisible = false;
   }
 }
 
@@ -517,6 +602,8 @@ app.addEventListener("click", (event) => {
   else if (action === "new-task") { refreshTasks(); render(); }
   else if (action === "hint") { saveVisibleAnswer(); state.hintIsVisible = !state.hintIsVisible; render(); }
   else if (action === "guided-hint") { saveVisibleAnswer(); state.guided.hintVisible = !state.guided.hintVisible; render(); }
+  else if (action === "practice-steps") { saveVisibleAnswer(); state.practiceStepsVisible = !state.practiceStepsVisible; render(); }
+  else if (action === "learning-hint") { saveVisibleAnswer(); const guide = activeLearningGuide(); guide.hintVisible = !guide.hintVisible; render(); }
   else if (action === "clear-progress") {
     state.progress = clearProgress();
     state.notice = "Результаты очищены.";
@@ -525,6 +612,14 @@ app.addEventListener("click", (event) => {
 });
 
 app.addEventListener("submit", (event) => {
+  if (event.target.id === "learning-step-form" && state.mode !== "test") {
+    event.preventDefault();
+    saveVisibleAnswer();
+    submitLearningStep(event.target);
+    render();
+    app.querySelector("[name=learning-0]")?.focus?.();
+    return;
+  }
   if (["guided-division-form", "guided-final-form"].includes(event.target.id)) {
     event.preventDefault();
     const module = findModule(state.moduleId);
