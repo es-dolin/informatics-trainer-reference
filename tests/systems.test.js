@@ -62,4 +62,3 @@ test("случайные задания на перевод и сравнени�
   assert.ok(kinds.has("systems-conversion"));
   assert.ok(kinds.has("systems-comparison"));
 });
-
